@@ -1,0 +1,30 @@
+[project]
+name = "vertexui"
+version = "1.1.0"
+description = "A dark-UI toolkit for Dear ImGui: theming, animation, sound, icons, log view and click-through toasts."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+keywords = ["imgui", "gui", "ui", "toolkit", "dark-theme", "desktop"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: User Interfaces",
+    "Environment :: Win32 (MS Windows)",
+]
+dependencies = ["imgui-bundle", "numpy"]
+
+[project.optional-dependencies]
+# toasts composite their surface with OpenCV; nothing else needs it
+toasts = ["opencv-python"]
+
+[project.urls]
+Homepage = "https://github.com/D4ead3ye/vertexui"
+Issues = "https://github.com/D4ead3ye/vertexui/issues"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["vertexui"]

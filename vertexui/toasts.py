@@ -57,6 +57,7 @@ WS_EX_LAYERED, WS_EX_TRANSPARENT = 0x00080000, 0x00000020
 WS_EX_TOPMOST, WS_EX_TOOLWINDOW = 0x00000008, 0x00000080
 WS_EX_NOACTIVATE = 0x08000000
 WS_POPUP, SW_SHOWNA, ULW_ALPHA = 0x80000000, 8, 0x00000002
+SW_HIDE = 0
 WDA_EXCLUDEFROMCAPTURE = 0x00000011
 
 # BGR, matching the default theme's status colours.
@@ -247,7 +248,7 @@ class Toasts:
 
     def __init__(self, anchor_titles=None, seconds=4.0, margin=16,
                  max_visible=5, colours=None, exclude_from_capture=True,
-                 on_status=None):
+                 on_status=None, on_event=None):
         self.anchor_titles = [t for t in (anchor_titles or []) if t]
         self.hold = float(seconds)
         self.margin = int(margin)
@@ -260,6 +261,10 @@ class Toasts:
         # Reports whether the window actually came up. Without it, "no
         # toasts" and "the overlay never started" look identical.
         self.on_status = on_status
+        # Called as on_event("in"|"out", kind, text) when a toast appears
+        # and when it starts sliding away. Fired from the toast thread, so
+        # the callback must not block — queue the work, do not do it here.
+        self.on_event = on_event
         self._q = queue.Queue()
         self._items = []
         self._thread = None
@@ -281,6 +286,25 @@ class Toasts:
         self._stop.set()
 
     # -- internals ------------------------------------------------------
+    def _fire(self, phase, item):
+        """Tell the owner a toast arrived or started leaving.
+
+        Guarded: a callback that raises must not take the toast thread down
+        with it, or the overlay stops repainting and the last frame stays
+        on the desktop.
+        """
+        if not self.on_event:
+            return
+        try:
+            self.on_event(phase, item["kind"], item["text"])
+        except Exception:
+            pass
+
+    def _leave(self, item, now):
+        if item["leaving"] is None:
+            item["leaving"] = now
+            self._fire("out", item)
+
     def _height(self):
         return self.max_visible * (ROW_H + GAP)
 
@@ -361,12 +385,13 @@ class Toasts:
                     t["born"], t["count"] = now, t.get("count", 1) + 1
                     break
             else:
-                self._items.append({"kind": kind, "text": text, "born": now,
-                                    "leaving": None, "count": 1, "y": None})
+                item = {"kind": kind, "text": text, "born": now,
+                        "leaving": None, "count": 1, "y": None}
+                self._items.append(item)
+                self._fire("in", item)
         if len(self._items) > self.max_visible:
             for t in self._items[:-self.max_visible]:
-                if t["leaving"] is None:
-                    t["leaving"] = now
+                self._leave(t, now)
 
     def _run(self):
         import numpy as np
@@ -391,12 +416,14 @@ class Toasts:
             self._drain()
             for t in self._items:
                 if t["leaving"] is None and now - t["born"] >= self.hold:
-                    t["leaving"] = now
+                    self._leave(t, now)
             self._items = [t for t in self._items
                            if t["leaving"] is None or now - t["leaving"] < SLIDE_OUT]
             dt = min(0.1, max(0.001, now - self._last_frame))
             self._last_frame = now
             if self._items:
+                if blank:
+                    _user32.ShowWindow(self._hwnd, SW_SHOWNA)
                 try:
                     self._blit(render(self._items, now, height, dt, self.colours))
                 except Exception:
@@ -407,6 +434,14 @@ class Toasts:
                     self._blit(np.zeros((height, WIDTH, 4), np.uint8))
                 except Exception:
                     pass
+                # Clearing by blitting a fully transparent surface is not
+                # reliable everywhere: on some compositors - overlay
+                # injectors and a few driver configurations especially -
+                # UpdateLayeredWindow with an all-zero bitmap leaves the
+                # previous frame painted, which strands a toast on screen
+                # until the process dies. Hiding the window cannot be
+                # ignored by any of them.
+                _user32.ShowWindow(self._hwnd, SW_HIDE)
                 blank = True
             time.sleep(0.016 if self._items else 0.15)
         try:

@@ -7,7 +7,9 @@ default — and to keep looking that way while they run unattended for hours.
 MIT licensed. No assets, no icon font, no audio files — everything is
 generated or drawn, so vendoring the folder is the whole install.
 
-![VertexUI](docs/hero.png)
+![VertexUI](docs/spotlight.gif)
+
+*The demo, running. `python -m vertexui.demo`*
 
 | module | what it is |
 |---|---|
@@ -289,6 +291,8 @@ replaceable `colour_for` rule. Rows are emitted through `ListClipper`, so a
 
 ![Scenes](docs/scenes.png)
 
+![A scene under an interface](docs/hero.png)
+
 A fragment shader over a fullscreen triangle, rendered to its own
 framebuffer and blitted beneath the entire interface. This is the one thing
 the draw list cannot do: a particle costs a draw call each, so that tops out
@@ -527,7 +531,10 @@ any frame raises. It exists because a wrong argument order sits silent until
 the one frame that hits it: `add_rect` in this binding takes
 `(rounding, thickness, flags)` rather than the C++ order, and the resulting
 `TypeError` only ever fired on a frame where a widget was hovered.
-`python tools/shots.py` regenerates every image in `docs/`.
+`python tools/shots.py` regenerates every still in `docs/`, and
+`python tools/spotlight.py` re-records the looping clip at the top — it
+records and encodes as separate stages, so re-encoding to tune the palette
+does not mean driving the demo again.
 
 ## Licence
 

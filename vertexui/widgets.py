@@ -262,6 +262,95 @@ def activity_rule(width: float, active: bool, key="rule", thickness=1.6):
     imgui.dummy(ImVec2(width, thickness + 2))
 
 
+def caps(dl, x, y, text, col, track=1.3):
+    """A micro-label in tracked capitals, drawn a glyph at a time.
+
+    ImGui has no letter-spacing, and these labels are three to seven
+    characters each - the tracking is most of what separates a laid-out
+    panel from a stack of default text, so it is worth the loop. Returns
+    the x it finished at.
+    """
+    for ch in text:
+        dl.add_text(ImVec2(x, y), col, ch)
+        x += imgui.calc_text_size(ch).x + track
+    return x
+
+
+def caps_width(text, track=1.3):
+    """What `caps` will occupy - for right-aligning one."""
+    if not text:
+        return 0.0
+    return sum(imgui.calc_text_size(c).x + track for c in text) - track
+
+
+def progress_hairline(value, height=3.0, colour=None, key="hairline"):
+    """A progress rule along the very top edge of the window, full width.
+
+    For the one number worth seeing from the other side of the room. Up
+    against the edge it costs no layout at all, and the bloom on the
+    leading edge is what makes the eye find it moving rather than having
+    to read it.
+    """
+    t = theme_mod.current()
+    io = imgui.get_io()
+    w = io.display_size.x
+    dl = imgui.get_window_draw_list()
+    eased = anim.to(key, max(0.0, min(1.0, float(value))), 5.0)
+    x1 = w * eased
+    dl.add_rect_filled(ImVec2(0, 0), ImVec2(w, height),
+                       imgui.get_color_u32(theme_mod.with_alpha(t.border, 0.55)))
+    if eased <= 0.0005:
+        return
+    dl.add_rect_filled(ImVec2(0, 0), ImVec2(x1, height),
+                       imgui.get_color_u32(colour or t.accent))
+    dl.add_circle_filled(
+        ImVec2(x1, height * 0.5), height * 2.3,
+        imgui.get_color_u32(theme_mod.with_alpha(t.accent_bright, 0.30)))
+
+
+class Transition:
+    """A wipe across a screen change.
+
+        self.wipe = widgets.Transition()
+        ...
+        self.wipe.to(self.screen)     # anywhere before drawing
+        ... draw the screen ...
+        self.wipe.draw()              # last thing in the frame
+
+    Swapping the whole window between one screen and another reads as a
+    glitch without a beat in between; a short fade over the top reads as
+    navigation. Nothing else about the screens has to change.
+    """
+
+    def __init__(self, speed=4.5, strength=0.85):
+        self.speed = float(speed)
+        self.strength = float(strength)
+        self._was = None
+        self._v = 0.0
+
+    def to(self, screen):
+        """Tell it which screen is being drawn. Fires on a change."""
+        if self._was is None:
+            self._was = screen
+        elif screen != self._was:
+            self._was = screen
+            self._v = 1.0
+        return screen
+
+    def draw(self):
+        if self._v <= 0.004:
+            return False
+        t = theme_mod.current()
+        io = imgui.get_io()
+        self._v = max(0.0, self._v - io.delta_time * self.speed)
+        imgui.get_window_draw_list().add_rect_filled(
+            ImVec2(0, 0), ImVec2(io.display_size.x, io.display_size.y),
+            imgui.get_color_u32(
+                theme_mod.with_alpha(t.bg, self._v * self.strength)))
+        anim.mark_busy()
+        return True
+
+
 def underline(width: float, colour=None, thickness=1.5, inset=0.0):
     """A rule exactly as wide as what it sits under.
 

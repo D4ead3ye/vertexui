@@ -2,9 +2,10 @@
 
     python -m vertexui.demo
 
-Every widget, the icon set, live theming with a colour picker, user
-presets, the settings panel and the log glide - so the package can be
-checked in isolation before being wired into anything.
+Every widget, the icon set, the card styles, live theming with a colour
+picker, the shader backdrop, the particle effects, the settings panel and
+the log glide - so the package can be checked in isolation before being
+wired into anything.
 """
 
 import random
@@ -13,7 +14,8 @@ import time
 from imgui_bundle import ImVec2, ImVec4, hello_imgui, imgui
 
 import vertexui as vui
-from vertexui import fonts, icons, logview, settings, sound, theme, widgets
+from vertexui import (backdrop as bgmod, cards, effects, fonts, icons,
+                      logview, settings, sound, theme, widgets)
 
 SAMPLES = [
     ("ok", "net", "Connected to 10.0.0.4:8080"),
@@ -25,6 +27,8 @@ SAMPLES = [
     (None, "core", "Tick 4821 - queue depth 3"),
 ]
 
+TABS = ["Controls", "Cards", "Theme", "Icons", "Ambience", "Log", "Settings"]
+
 
 class Demo:
     def __init__(self):
@@ -34,8 +38,12 @@ class Demo:
         self.tray = None
         self.st = settings.Settings.load(app="vertexui-demo")
         self.log = logview.LogView(speed=self.st.log_speed)
-        self.st.apply(self.log)
+        self.fx = effects.Effects()
+        self.bg = bgmod.Backdrop()
+        self.wipe = widgets.Transition()
+        self.st.apply(self.log, backdrop=self.bg, effects=self.fx)
         self._next = 0.0
+        self._progress = 0.0
         for _ in range(30):
             self._emit()
 
@@ -47,8 +55,7 @@ class Demo:
     def header(self):
         """Laid out with ordinary items and same_line rather than manual
         cursor maths - hand-computed offsets drift the moment a font or a
-        label changes, which is exactly how the pill ended up sitting on
-        top of the version number."""
+        label changes."""
         t = theme.current()
         dl = imgui.get_window_draw_list()
         o = imgui.get_cursor_screen_pos()
@@ -105,6 +112,59 @@ class Demo:
             imgui.same_line()
         imgui.new_line()
 
+    def card_tab(self):
+        t = theme.current()
+        imgui.text_colored(t.text_dim,
+                           "Cards size themselves to their content - the draw "
+                           "list is split so the plate can be drawn behind "
+                           "afterwards, with no height passed in.")
+        imgui.dummy(ImVec2(0, 8))
+
+        widgets.section("style")
+        for name in cards.STYLES:
+            if widgets.button(name, 120, primary=(self.st.card_style == name)):
+                self.st.card_style = name
+                self.st.apply(self.log)
+            imgui.same_line()
+        shadow = widgets.checkbox("drop shadow", self.st.card_shadow)
+        if shadow != self.st.card_shadow:
+            self.st.card_shadow = shadow
+            self.st.apply(self.log)
+
+        imgui.dummy(ImVec2(0, 10))
+        col = (imgui.get_content_region_avail().x - 20) * 0.5
+
+        with cards.card("connection", icon="bolt", right="online",
+                        right_col=t.ok, dot=t.ok, width=col, edge=t.ok) as c:
+            imgui.text_colored(t.text_dim, "10.0.0.4:8080")
+            imgui.dummy(ImVec2(0, 4))
+            dl = imgui.get_window_draw_list()
+            o = imgui.get_cursor_screen_pos()
+            cards.meter(dl, o.x, o.x + c.width, o.y, 0.72, t.ok)
+            imgui.dummy(ImVec2(c.width, 10))
+            imgui.text_colored(t.text_mute, "72% of the window used")
+        imgui.same_line()
+        with cards.card("readout", icon="gear", right="live", width=col) as c:
+            with fonts.use("huge"):
+                imgui.text_colored(t.text, "210")
+            imgui.same_line()
+            imgui.text_colored(t.text_mute, "degrees")
+            imgui.text_colored(t.text_dim,
+                               "A display face at size reads as an "
+                               "instrument; a body face at size is just "
+                               "big body text.")
+
+        imgui.dummy(ImVec2(0, 10))
+        with cards.card("no header card", width=0) as c:
+            imgui.text_colored(t.text_dim,
+                               "A card with no title is just a plate - useful "
+                               "when the contents name themselves.")
+            imgui.dummy(ImVec2(0, 4))
+            for kind, text in (("ok", "healthy"), ("warn", "3 retries")):
+                widgets.badge(text, kind)
+                imgui.same_line()
+            imgui.new_line()
+
     def theming(self):
         t = theme.current()
         imgui.text_colored(t.text_dim,
@@ -115,7 +175,7 @@ class Demo:
         for name in theme.list_presets(self.st.app):
             if widgets.button(name, 0, primary=(name == self.st.theme_name)):
                 self.st.theme_name, self.st.accent = name, ""
-                self.st.apply(self.log)
+                self.st.apply(self.log, backdrop=self.bg, effects=self.fx)
                 self.notify("info", f"Theme: {name}")
             imgui.same_line()
         imgui.new_line()
@@ -142,6 +202,20 @@ class Demo:
             imgui.same_line(0, 30)
         imgui.new_line()
 
+        imgui.dummy(ImVec2(0, 8))
+        widgets.section("tracked micro-labels")
+        imgui.text_colored(t.text_dim,
+                           "ImGui has no letter-spacing, so widgets.caps "
+                           "draws these a glyph at a time:")
+        dl = imgui.get_window_draw_list()
+        o = imgui.get_cursor_screen_pos()
+        with fonts.use("label"):
+            x = widgets.caps(dl, o.x, o.y + 6, "NOZZLE",
+                             imgui.get_color_u32(t.text_dim), 1.5)
+            widgets.caps(dl, x + 24, o.y + 6, "BED",
+                         imgui.get_color_u32(t.text_mute), 1.5)
+        imgui.dummy(ImVec2(0, 26))
+
     def icon_sheet(self):
         t = theme.current()
         imgui.text_colored(t.text_dim,
@@ -160,6 +234,58 @@ class Demo:
             dl.add_text(ImVec2(cx - 26, cy + 30), imgui.get_color_u32(t.text_mute), name)
         rows = (len(icons.names()) + per_row - 1) // per_row
         imgui.dummy(ImVec2(0, rows * 80))
+
+    def ambience(self):
+        t = theme.current()
+        widgets.section("backdrop")
+        if not bgmod.HAVE_GL:
+            imgui.text_colored(t.warn,
+                               "PyOpenGL is not installed, so the shader "
+                               "backdrop is unavailable here: "
+                               "pip install vertexui[backdrop]")
+        else:
+            for name in bgmod.SCENES:
+                if widgets.button(name, 105, primary=(self.bg.kind == name)):
+                    self.bg.set(name)
+                    self.st.backdrop = name
+                imgui.same_line()
+            imgui.new_line()
+            imgui.text_colored(t.text_mute, bgmod.BLURBS.get(self.bg.kind, ""))
+            if self.bg.kind != "none":
+                self.bg.intensity = widgets.slider(
+                    "brightness", self.bg.intensity, 0.1, 2.0, 200.0,
+                    "%.2f", key="demo_bdint")
+                imgui.same_line()
+                self.bg.speed = widgets.slider(
+                    "speed", self.bg.speed, 0.1, 3.0, 200.0, "%.2f",
+                    key="demo_bdspeed")
+            if self.bg.error:
+                imgui.text_colored(t.danger, self.bg.error)
+
+        imgui.dummy(ImVec2(0, 10))
+        widgets.section("particles")
+        per_row = 6
+        for i, name in enumerate(effects.NAMES):
+            if widgets.button(name, 125, primary=(self.fx.kind == name)):
+                self.fx.set(name)
+                self.st.effect = name
+            if (i + 1) % per_row:
+                imgui.same_line()
+        imgui.new_line()
+        imgui.text_colored(t.text_mute, effects.BLURBS.get(self.fx.kind, ""))
+        if self.fx.kind != "none":
+            self.fx.intensity = widgets.slider(
+                "intensity", self.fx.intensity, 0.1, 2.0, 200.0, "%.2f",
+                key="demo_fxint")
+            imgui.same_line()
+            self.st.effect_over = widgets.slider(
+                "over panels", self.st.effect_over, 0.0, 1.0, 200.0, "%.2f",
+                key="demo_fxover")
+            imgui.text_colored(t.text_dim,
+                               "Behind only, an effect shows in the gaps "
+                               "between panels and nowhere else. Painted "
+                               "again over the top, it reads as one "
+                               "atmosphere rather than as wallpaper.")
 
     def log_tab(self):
         t = theme.current()
@@ -183,7 +309,7 @@ class Demo:
         self.log.draw()
 
     def settings_tab(self):
-        settings.panel(self.st, self.log,
+        settings.panel(self.st, self.log, backdrop=self.bg, effects=self.fx,
                        on_change=lambda s: self.notify("info", "Settings applied"))
 
     # -- plumbing -------------------------------------------------------
@@ -191,32 +317,63 @@ class Demo:
         if self.tray is not None:
             self.tray.notify(kind, text)
 
+    def on_toast(self, phase, kind, text):
+        """Arrival and departure cues, hung off the toast overlay's own
+        callback - it runs on the toast thread, so this only queues."""
+        sound.play("toast_in" if phase == "in" else "toast_out")
+
     def gui(self):
+        io = imgui.get_io()
+        now = imgui.get_time()
+        w, h = io.display_size.x, io.display_size.y
+
+        # First: the backdrop paints over the window's own fill, so it has
+        # to land before any content.
+        self.bg.draw()
+
         # a trickle of log output, so the glide has something to follow
         if self.running and time.time() > self._next:
             self._next = time.time() + 0.12
             self._emit()
             vui.anim.mark_busy()
+            self._progress = (self._progress + 0.004) % 1.0
+
+        widgets.progress_hairline(self._progress if self.running else 0.0)
+
+        moving = self.fx.step(now, io.delta_time)
+        if moving:
+            self.fx.paint(imgui.get_window_draw_list(), 0, 0, w, h, now, 1.0)
 
         self.header()
-        self.tab = widgets.tabs(
-            "demo", ["Controls", "Theme", "Icons", "Log", "Settings"], self.tab)
-        (self.controls, self.theming, self.icon_sheet,
-         self.log_tab, self.settings_tab)[self.tab]()
+        self.tab = widgets.tabs("demo", TABS, self.tab)
+        self.wipe.to(self.tab)
+        (self.controls, self.card_tab, self.theming, self.icon_sheet,
+         self.ambience, self.log_tab, self.settings_tab)[self.tab]()
+
+        # Second pass, same particles, over the top - on the window's own
+        # list after the content, so it sits above everything drawn this
+        # frame but still below popups. A modal has to stay readable.
+        if moving and self.st.effect_over > 0.004:
+            self.fx.paint(imgui.get_window_draw_list(), 0, 0, w, h, now,
+                          self.st.effect_over)
+
+        self.wipe.draw()
         vui.end_frame()
 
     def run(self):
         from vertexui import toasts
-        self.tray = toasts.Toasts(seconds=3.5, on_status=print)
+        self.tray = toasts.Toasts(seconds=3.5, on_status=print,
+                                  on_event=self.on_toast)
         self.tray.start()
 
         params = hello_imgui.RunnerParams()
         params.app_window_params.window_title = "VertexUI demo"
-        params.app_window_params.window_geometry.size = (980, 660)
+        params.app_window_params.window_geometry.size = (1040, 700)
         params.imgui_window_params.default_imgui_window_type = (
             hello_imgui.DefaultImGuiWindowType.provide_full_screen_window)
         params.callbacks.show_gui = self.gui
-        vui.install(params, theme_=self.st.build_theme())
+        vui.install(params, theme_=self.st.build_theme(),
+                    faces=self.st.build_faces())
         hello_imgui.run(params)
         self.tray.stop()
 

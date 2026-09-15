@@ -21,12 +21,15 @@ The cursor is drawn in afterwards. ImGui does not render the OS pointer
 into the framebuffer, and without one the hover animations look like
 buttons lighting up on their own rather than like someone using the thing.
 
-Nothing here simulates clicks. State is driven directly and the cursor is
-parked on the control that would have caused it, which reads the same and
-cannot desynchronise from what the app actually did.
+Nothing here simulates clicks. State is driven directly and the cursor
+travels to the control that would have caused it and arrives before it
+fires, which reads the same and cannot desynchronise from what the app
+actually did. Travel is eased and its duration scales with distance, so
+the pointer moves rather than teleports between controls.
 """
 
 import ctypes
+import math
 import sys
 from pathlib import Path
 
@@ -68,77 +71,94 @@ SCENE_Y = 141                              # the scene row on Ambience
 SCENE_X = [68, 183, 298, 413, 528, 643, 758]
 
 
-def timeline(app):
-    """(frames, action) in order. `action(f, n)` runs every frame of its
-    block with the frame index within the block."""
-    def at(x, y):
-        return lambda f, n: ("cursor", (x, y))
+TABS = ["controls", "cards", "theme", "icons", "ambience", "log", "settings"]
 
-    def glide(x0, y0, x1, y1):
-        """Move the cursor across a block, so hovers ease in and out."""
-        def go(f, n):
-            k = f / max(1, n - 1)
-            return ("cursor", (x0 + (x1 - x0) * k, y0 + (y1 - y0) * k))
-        return go
+# Where the cursor starts, and where it has to finish for the loop to land.
+HOME = (TABS_X["controls"], TAB_Y)
+
+
+def timeline(app):
+    """Blocks of (frames, kind, payload), in order.
+
+    Two kinds, and keeping them separate is the whole point:
+
+        ("move", (x, y))   travel there, eased, touching nothing
+        ("do", fn)         fire once on arrival, cursor held still
+
+    A block that both jumped the cursor and changed the state made the
+    click land before the pointer got there, which is what made the first
+    cut look like the cursor was teleporting between controls.
+    """
+    def move(x, y, n):
+        return (n, "move", (x, y))
+
+    def do(fn, n):
+        return (n, "do", fn)
 
     def tab(name):
-        def go(f, n):
-            app.tab = ["controls", "cards", "theme", "icons", "ambience",
-                       "log", "settings"].index(name)
-            return ("cursor", (TABS_X[name], TAB_Y))
+        def go():
+            app.tab = TABS.index(name)
         return go
 
     def style(i):
-        def go(f, n):
+        def go():
             app.st.card_style = cards.STYLES[i]
             cards.set_style(cards.STYLES[i], True)
-            return ("cursor", (STYLE_X[i], STYLE_Y))
         return go
 
-    def scene(name, i):
-        def go(f, n):
-            app.bg.set(name)
-            return ("cursor", (SCENE_X[i], SCENE_Y))
-        return go
+    def scene(name):
+        return lambda: app.bg.set(name)
 
     def check(i, value):
         label = list(app.checks)[i]
+        return lambda: app.checks.__setitem__(label, value)
 
-        def go(f, n):
-            app.checks[label] = value
-            return ("cursor", (CHECK_X[i] + 40, CHECK_Y))
-        return go
+    plan = []
+    at = [HOME]                      # where the cursor will be, as we build
 
-    return [
-        # --- the interface, and what moves in it ----------------------
-        (12, tab("controls")),
-        (34, glide(BTN_X[0], BTN_Y, BTN_X[4], BTN_Y)),
-        (9, check(2, True)),
-        (9, check(0, False)),
-        (9, check(0, True)),
-        # --- cards ----------------------------------------------------
-        (12, tab("cards")),
-        (14, style(0)),
-        (14, style(1)),
-        (14, style(2)),
-        (14, style(3)),
-        # --- the shader backdrop --------------------------------------
-        (12, tab("ambience")),
-        (18, scene("flow", 3)),
-        (18, scene("aurora", 1)),
-        (18, scene("nebula", 4)),
-        (18, scene("grid", 5)),
-        # --- and the log glide, over the top --------------------------
-        (12, tab("log")),
-        (22, lambda f, n: ("cursor", (470, TAB_Y))),
-        # --- back to where it started, so the loop lands --------------
-        # Long enough for everything to settle, which is longer than the
-        # screen wipe alone: the tab indicator is still easing back from
-        # Log after the fade has gone, and a tail that ends mid-ease makes
-        # the loop pop every time it comes round.
-        (6, lambda f, n: (app.bg.set("none"), ("cursor", (300, 300)))[-1]),
-        (40, tab("controls")),
-    ]
+    def travel(x, y):
+        """Frames for a move, from how far it has to go.
+
+        A fixed count per move means a long hop covers ground far faster
+        than a short one, and smoothstep peaks at 1.5x its average - which
+        on the widest hops put 53 pixels between consecutive frames and
+        read as a skip rather than as a movement.
+        """
+        dist = math.dist(at[0], (x, y))
+        return max(7, min(24, int(dist / 18) + 3))
+
+    def visit(x, y, fn, hold):
+        plan.append(move(x, y, travel(x, y)))
+        plan.append(do(fn, hold))
+        at[0] = (x, y)
+
+    # --- the interface, and what moves in it --------------------------
+    # a sweep along the button row first, so hover eases in and out
+    for i, x in enumerate(BTN_X[:4]):
+        visit(x, BTN_Y, lambda: None, 3 if i else 4)
+    visit(CHECK_X[2], CHECK_Y, check(2, True), 4)
+    visit(CHECK_X[0], CHECK_Y, check(0, False), 3)
+    plan.append(do(check(0, True), 5))          # same spot, no travel
+    # --- cards --------------------------------------------------------
+    visit(TABS_X["cards"], TAB_Y, tab("cards"), 6)
+    for i in range(4):
+        visit(STYLE_X[i], STYLE_Y, style(i), 6)
+    # --- the shader backdrop ------------------------------------------
+    # Left to right along the row rather than hopping about it: the same
+    # three scenes for two thirds of the travel.
+    visit(TABS_X["ambience"], TAB_Y, tab("ambience"), 6)
+    for name, i in (("flow", 3), ("nebula", 4), ("grid", 5)):
+        visit(SCENE_X[i], SCENE_Y, scene(name), 10)
+    # --- and the log glide, over the top ------------------------------
+    visit(TABS_X["log"], TAB_Y, tab("log"), 18)
+    # --- back to where it started, so the loop lands ------------------
+    # The hold has to outlast everything still easing, which is longer
+    # than the screen wipe alone: the tab indicator is still travelling
+    # back from Log after the fade has gone, and a tail that ends
+    # mid-ease makes the loop pop every time it comes round.
+    visit(HOME[0], HOME[1],
+          lambda: (app.bg.set("none"), tab("controls")())[-1], 40)
+    return plan
 
 
 def draw_cursor(img, x, y):
@@ -228,18 +248,28 @@ def main(argv):
     app.bg.set("none")
     app.st.effect_over = 0.5
     plan = timeline(app)
-    total = sum(n for n, _ in plan)
+    total = sum(n for n, _, _ in plan)
 
-    st = {"i": 0, "f": 0, "cursor": (300, 300), "frames": []}
+    st = {"i": 0, "f": 0, "cursor": HOME, "from": HOME, "frames": []}
 
     def gui():
         if st["i"] >= len(plan):
             hello_imgui.get_runner_params().app_shall_exit = True
             return
-        n, action = plan[st["i"]]
-        got = action(st["f"], n)
-        if isinstance(got, tuple) and got and got[0] == "cursor":
-            st["cursor"] = got[1]
+        n, kind, payload = plan[st["i"]]
+        if st["f"] == 0:
+            st["from"] = st["cursor"]
+            if kind == "do":
+                payload()
+        if kind == "move":
+            # Smoothstep, so the pointer accelerates away and settles in
+            # rather than sliding at a constant rate - which reads as a
+            # dragged object rather than as a hand.
+            k = st["f"] / max(1, n - 1)
+            k = k * k * (3.0 - 2.0 * k)
+            x0, y0 = st["from"]
+            x1, y1 = payload
+            st["cursor"] = (x0 + (x1 - x0) * k, y0 + (y1 - y0) * k)
         imgui.get_io().mouse_pos = ImVec2(float(st["cursor"][0]),
                                           float(st["cursor"][1]))
         app.gui()

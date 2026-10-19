@@ -21,6 +21,12 @@ generated or drawn, so vendoring the folder is the whole install.
 | `widgets` | buttons, tabs, sliders, colour picker, badges — all animated |
 | `cards` | the panels an interface is built out of, in four styles |
 | `graphics` | sparklines, dials, meters, heatmaps — drawn, theme-coloured |
+| `inputs` | text fields, switches, segmented controls, chips, steppers |
+| `table` | sortable, selectable, clipped rows of data |
+| `dialogs` | modals, a scrim, and a registry so anything can open one |
+| `notices` | note, banner, empty state, and an in-window message tray |
+| `fmt` | durations, sizes, counts, and text that fits its box |
+| `i18n` | strings in more than one language, with a sane fallback |
 | `compose` | slots, modules, pages, hooks and a connector bus |
 | `layouts` | six chrome shapes: tabbed, rail, dense, stage, hud, split |
 | `profiles` | whole identities — palette, shape, type, density, motion |
@@ -167,6 +173,115 @@ because without one the eye has to find the right-hand end before it can
 read "now"; and `levels` going hot near the top, because a meter that
 stays one colour makes you read the number to find out whether it is
 clipping.
+
+## Forms and records
+
+![Forms](docs/forms.png)
+
+The toolkit had everything you need to *trigger* something and nothing you
+need to *enter* something. These came back from the applications built on
+it — the duplication counts are from a scan of ten of them.
+
+```python
+changed, name = inputs.text_input("name", name, label="Supplier")
+only_open     = inputs.switch("Open orders only", only_open)
+view          = inputs.segmented("view", ["Day", "Week", "Month"], view)
+qty           = inputs.stepper("qty", qty, lo=1, hi=99)
+on            = inputs.chip("late", "error", on=on)
+inputs.delta(-1.1, good_up=False)      # down is the win for latency
+```
+
+`switch` is not a reskinned checkbox: a checkbox says *this item is
+selected*, a switch says *this setting is on*, and five checkboxes read as
+a multi-select where five switches read as five independent settings.
+
+### Table
+
+A tool that holds records cannot do without one, and one project wrote
+about 150 lines of its own — including a header row drawn by hand, because
+ImGui's built-in one cannot hold a tri-state checkbox or sort on a click of
+the label, which is where everyone clicks.
+
+```python
+cols = [table.Col("ref", "Ref", 110),
+        table.Col("supplier", "Supplier"),
+        table.Col("total", "Total", 130, align="r")]
+st = table.State(sort="due")
+
+rows = st.sort_rows(rows)
+with table.table("orders", cols, height=380) as open_:
+    if open_:
+        table.header(cols, st, ids=[r["id"] for r in rows])
+        for i, r in table.rows(rows, st):
+            hovered, clicked = table.row_begin(r["id"], r["id"] in st.selected)
+            table.cell(r["ref"], role="mono", column=0)
+            table.cell(r["supplier"], column=1)
+            table.cell(f"{r['total']:,.2f}", align="r", column=2)
+```
+
+`table.rows` runs a clipper, so four thousand rows cost a screenful.
+Sorting, selection and the tri-state header box live on `State`, which is a
+plain dataclass you can persist. `None` sorts last in both directions,
+because *missing* is not smaller than everything.
+
+### Dialogs
+
+The hard part was never the box — it is that a dialog is opened from
+somewhere it is not drawn: a table row, a toolbar, a shortcut. ImGui wants
+`open_popup` in the same ID stack the popup is drawn in, which is why every
+project ended up with a registry. This is that registry.
+
+```python
+dialogs.register("delete", draw_delete)     # once
+dialogs.open("delete", ids=selected)        # from anywhere, even a row
+dialogs.draw()                              # once, end of frame
+```
+
+`dialogs.confirm(...)` is the yes/no case in a single call and registers
+itself. Escape closes anything closable, which hand-rolled modals
+reliably forget.
+
+### Notices
+
+```python
+notices.note("Fragile crates route to the inspection bay.", icon="warning")
+notices.banner("Saving failed.", "error", action=("Retry", retry))
+notices.empty_state("search", "Nothing matches", body, actions=[...])
+tray = notices.Tray(); tray.push("ok", "Saved"); tray.draw()
+```
+
+Four surfaces in rising order of interruption. `note` is here because
+**six separate projects wrote it** before this module existed, and two were
+byte-for-byte identical — same signature, same `rule, pad = 3.0, 9.0`, same
+wrap arithmetic. That is the clearest signal a toolkit can get.
+
+`Tray` is the in-window sibling of `toasts`: same four kinds, same
+collapse-repeats, drawn on the window's own list — for anything that does
+not want a layered OS window, or is not on Windows.
+
+## Formatting and language
+
+```python
+fmt.duration(4512)   # 1h 15m        fmt.bytes(1536000)  # 1.5 MB
+fmt.count(28400)     # 28.4k         fmt.ago(then)       # 4m ago
+fmt.clock(3725)      # 1:02:05       fmt.ellipsis(s, 180)
+```
+
+`ellipsis` measures rather than counting characters — a proportional face
+makes `WWWW` twice the width of `iiii`, and a character budget truncates
+one far too early and the other not at all.
+
+```python
+i18n.load("pt", {"save": "Salvar"})
+i18n.use("pt")
+i18n.t("save")            # Salvar
+i18n.t("nope")            # "nope" - never an exception, never a blank
+```
+
+Deliberately small. A missing key returns the key, because a panel reading
+`orders.due` is a bug you can see and an empty label is one you find from a
+screenshot three weeks later. `i18n.missing()` lists everything asked for
+and not found, so the translation to-do list writes itself.
 
 ## Minimal app
 
@@ -618,6 +733,24 @@ often read-only and a preset is user data.
 A corrupt settings file costs you your preferences, not your program: both
 loaders fall back to defaults rather than raising.
 
+## Where this came from
+
+Most of 1.4 is not new invention. Ten applications built on this toolkit
+were scanned for what they had to write themselves, and the duplication
+decided the priorities:
+
+| built independently by | |
+|---|---|
+| 6 projects | `notices.note` |
+| 3 projects | sparkline, ring, line chart, own icon pack, duration formatting, a `u32` colour helper |
+| 2 projects | modal/dialog, scrim, progress meter |
+| 1 project, ~1,600 lines | table, inputs, switch, segmented, empty state, in-window toasts, UI zoom |
+
+The icon set went from 16 to 46 for the same reason — three packs
+overlapped on `trash`, `download`, `cube`, `upload`, `plus`/`minus`, `eye`,
+`pencil`, `sort_up`/`sort_down`, `gauge` and `terminal`. `icons.register()`
+is there so the next project extends the set instead of forking it.
+
 ## Install
 
 ```bash
@@ -677,6 +810,15 @@ that a thing runs and two opposed ones show that it is actually modular:
 | `examples/profiler.py` | dense, data-rich — sparklines, heatmap, histogram, shared plot |
 | `examples/tuner.py` | the opposite — one number, no navigation, nothing else |
 | `examples/watchtower.py` | **identical modules under every profile** — `--profile paper`, `--hud` |
+| `examples/ledger.py` | 4,000-row table, search, chips, dialogs, banner, split aside |
+| `examples/intake.py` | the opposite — one form, one screen, zoomed up |
+
+![Ledger and intake](docs/ledger.png)
+
+The same six modules, on the same day: a light records tool and a zoomed
+single-purpose form.
+
+![Intake](docs/intake.png)
 | `examples/minimal.py` | twelve lines |
 | `examples/ambience.py` | backdrop, particles and cards together |
 | `examples/notifications.py` | the toast overlay on its own |

@@ -17,9 +17,9 @@ import numpy as np
 from imgui_bundle import ImVec2, ImVec4, hello_imgui, imgui
 
 import vertexui as vui
-from vertexui import (backdrop as bgmod, cards, effects, fonts, graphics,
-                      icons, logview, profiles, settings, sound, theme,
-                      widgets)
+from vertexui import (backdrop as bgmod, cards, dialogs, effects, fmt,
+                      fonts, graphics, icons, inputs, logview, notices,
+                      profiles, settings, sound, table, theme, widgets)
 
 SAMPLES = [
     ("ok", "net", "Connected to 10.0.0.4:8080"),
@@ -34,7 +34,7 @@ SAMPLES = [
 # New tabs are appended rather than inserted: tools/shots.py and
 # tools/spotlight.py address tabs by index.
 TABS = ["Controls", "Cards", "Theme", "Icons", "Ambience", "Log", "Settings",
-        "Graphics", "Profiles"]
+        "Graphics", "Profiles", "Forms"]
 
 
 class Demo:
@@ -58,6 +58,16 @@ class Demo:
         self.grid = rng.random((6, 18)) ** 1.6
         self.samples = rng.normal(0, 0.35, 1400) * np.linspace(1, .2, 1400)
         self.spread = rng.normal(0, 1, (90, 2))
+        self.form = {"name": "Northwind", "query": "", "notes": "",
+                     "live": True, "view": 1, "qty": 3,
+                     "tags": {"open": True, "late": False}}
+        self.msgs = notices.Tray(corner="tr")
+        self.tbl = table.State(sort="ref")
+        self.records = [{"ref": f"PO-{4100 + i}",
+                         "who": ["Northwind", "Köhler", "Sun Fabrics"][i % 3],
+                         "state": ["open", "paid", "late"][i % 3],
+                         "total": 240.0 * (i % 7 + 1)} for i in range(60)]
+        self.banner_on = True
         self.marks = [(i * 0.7 + rng.random(),
                        str(rng.choice(["ok", "ok", "warn", "error", "info"])))
                       for i in range(26)]
@@ -424,6 +434,85 @@ class Demo:
             graphics.plot({"a": self.sig, "b": self.sig2}, c.width, 76,
                           legend=False, fill=True)
 
+    def forms_tab(self):
+        t = theme.current()
+        f = self.form
+        if self.banner_on:
+            def close():
+                self.banner_on = False
+            notices.banner("Entering things is half of what a tool does, and "
+                           "the toolkit had none of it until now.", "info",
+                           action=("Toast", lambda: self.msgs.push(
+                               "ok", "In-window tray, not an OS overlay")),
+                           on_close=close)
+
+        half = (imgui.get_content_region_avail().x - 18) * 0.5
+        with cards.card("inputs", icon="pencil", width=half) as c:
+            _, f["name"] = inputs.text_input("d:name", f["name"],
+                                             label="Supplier",
+                                             hint="Who it came from",
+                                             width=c.width / theme.current().ui_scale)
+            imgui.dummy(ImVec2(0, 6))
+            _, f["query"] = inputs.search_input("d:q", f["query"], width=240)
+            imgui.dummy(ImVec2(0, 8))
+            f["live"] = inputs.switch("Live updates", f["live"])
+            imgui.same_line(0, 20)
+            inputs.delta(2.4)
+            imgui.same_line(0, 14)
+            inputs.delta(-1.1, good_up=False)
+            imgui.dummy(ImVec2(0, 8))
+            f["view"] = inputs.segmented("d:view", ["Day", "Week", "Month"],
+                                         f["view"])
+            imgui.dummy(ImVec2(0, 8))
+            inputs.field_label("Crates", "stepper")
+            f["qty"] = inputs.stepper("d:qty", f["qty"], lo=0, hi=20)
+            imgui.dummy(ImVec2(0, 6))
+            for k in list(f["tags"]):
+                f["tags"][k] = inputs.chip(k, "ok" if k == "open" else "error",
+                                           on=f["tags"][k], key=f"d:c:{k}")
+                imgui.same_line(0, 6)
+            imgui.new_line()
+        imgui.same_line()
+        with cards.card("notices", icon="info", width=half) as c:
+            notices.note("A note belongs to the control above it - recessed "
+                         "ground, accent rule, no border box. Six projects "
+                         "wrote this before it was here.", width=c.width)
+            notices.note("Something needs a look.", tone=t.warn,
+                         icon="warning", width=c.width)
+            if widgets.button("Confirm dialog", 190, icon="check", key="d:dlg"):
+                dialogs.confirm("Delete 4 orders?",
+                                on_yes=lambda: self.msgs.push("ok", "Deleted"),
+                                body="This cannot be undone.", kind="error",
+                                yes="Delete")
+            imgui.same_line()
+            if widgets.button("Toast", 120, icon="bolt", key="d:toast"):
+                self.msgs.push(random.choice(["ok", "warn", "error", "info"]),
+                               "Something happened")
+
+        imgui.dummy(ImVec2(0, 10))
+        widgets.section("table - sortable, selectable, clipped")
+        cols = [table.Col("ref", "Ref", 120),
+                table.Col("who", "Supplier"),
+                table.Col("state", "State", 110, align="c"),
+                table.Col("total", "Total", 130, align="r")]
+        rows = self.tbl.sort_rows(self.records)
+        ids = [r["ref"] for r in rows]
+        with table.table("demo", cols, height=190) as open_:
+            if open_:
+                table.header(cols, self.tbl, ids=ids)
+                for i, r in table.rows(rows, self.tbl):
+                    sel = r["ref"] in self.tbl.selected
+                    _, clicked = table.row_begin(r["ref"], sel)
+                    if clicked:
+                        self.tbl.toggle(r["ref"])
+                    table.cell(r["ref"], role="mono", colour=t.text_mute, column=0)
+                    table.cell(r["who"], column=1)
+                    table.cell(r["state"], align="c", column=2,
+                               colour=t.status({"open": "info", "paid": "ok",
+                                                "late": "error"}[r["state"]]))
+                    table.cell(f"{r['total']:,.2f}", align="r", role="mono",
+                               column=3)
+
     # -- plumbing -------------------------------------------------------
     def notify(self, kind, text):
         if self.tray is not None:
@@ -461,7 +550,7 @@ class Demo:
         self.wipe.to(self.tab)
         (self.controls, self.card_tab, self.theming, self.icon_sheet,
          self.ambience, self.log_tab, self.settings_tab, self.graphics_tab,
-         self.profiles_tab)[self.tab]()
+         self.profiles_tab, self.forms_tab)[self.tab]()
 
         # Second pass, same particles, over the top - on the window's own
         # list after the content, so it sits above everything drawn this
@@ -471,6 +560,8 @@ class Demo:
                           self.st.effect_over)
 
         self.wipe.draw()
+        dialogs.draw()
+        self.msgs.draw()
         vui.end_frame()
 
     def run(self):

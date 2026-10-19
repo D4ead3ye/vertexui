@@ -78,10 +78,34 @@ def _under(dl, pts, base_y, col):
                            ImVec2(b.x, base_y), ImVec2(a.x, base_y), col)
 
 
+def _hover_slot(o, w, h, n):
+    """Which of `n` evenly-spaced slots the pointer is over, or None.
+
+    `is_mouse_hovering_rect` rather than an invisible button: a chart
+    should report what it is under the cursor without swallowing the click
+    that was meant for the card behind it.
+    """
+    if n <= 0:
+        return None
+    if not imgui.is_mouse_hovering_rect(ImVec2(o.x, o.y),
+                                        ImVec2(o.x + w, o.y + h)):
+        return None
+    mx = imgui.get_io().mouse_pos.x - o.x
+    return max(0, min(n - 1, int(mx / max(1.0, w) * n)))
+
+
+def _tip(label, value, value_fmt=None):
+    text = label if value is None else (
+        f"{label}   {value_fmt(value) if value_fmt else f'{value:.4g}'}"
+        if label else (value_fmt(value) if value_fmt else f"{value:.4g}"))
+    imgui.set_tooltip(text)
+
+
 # --- lines -------------------------------------------------------------
 
 def sparkline(values, width=0.0, height=34.0, colour=None, fill=True,
-              head=True, lo=None, hi=None, ground=True, thickness=1.6):
+              head=True, lo=None, hi=None, ground=True, thickness=1.6,
+              value_fmt=None, labels=None, tooltip=False):
     """A line with no axes, for a number's recent history.
 
     The head dot is the point of it: without one the eye has to find the
@@ -107,11 +131,21 @@ def sparkline(values, width=0.0, height=34.0, colour=None, fill=True,
         if head:
             dl.add_circle_filled(pts[-1], 2.6, _col(c, 1.0))
             dl.add_circle_filled(pts[-1], 5.2, _col(c, 0.22))
+        if tooltip:
+            k = _hover_slot(o, w, height, v.size)
+            if k is not None:
+                dl.add_line(ImVec2(float(xs[k]), o.y),
+                            ImVec2(float(xs[k]), o.y + height),
+                            _col(t.text_mute, 0.45), 1.0)
+                dl.add_circle_filled(pts[k], 3.4, _col(c))
+                _tip(labels[k] if labels and k < len(labels) else "",
+                     float(v[k]), value_fmt)
     imgui.dummy(ImVec2(w, height))
 
 
 def plot(series, width=0.0, height=120.0, lo=None, hi=None, grid=4,
-         legend=True, fill=False, labels=None):
+         legend=True, fill=False, labels=None, value_fmt=None, ticks=True,
+         x_labels=None, tooltip=False):
     """Several named series on shared axes.
 
     `series` is {name: values} or a sequence of sequences. Use this when
@@ -133,26 +167,53 @@ def plot(series, width=0.0, height=120.0, lo=None, hi=None, grid=4,
     flat = np.concatenate([np.asarray(d, np.float64).ravel()
                            for d in data if len(d)]) if data else np.zeros(1)
     a, b = _span(flat, lo, hi)
+    fmt_v = value_fmt or (lambda v: f"{v:.4g}")
+    # Reserve a gutter wide enough for the widest tick, so labels sit
+    # beside the data instead of on top of it.
+    gutter = 0.0
+    if ticks:
+        with fonts.use("label"):
+            gutter = max(imgui.calc_text_size(
+                fmt_v(b - (b - a) * g / grid)).x for g in range(grid + 1)) + 10.0
+    x0 = o.x + gutter
     for g in range(grid + 1):
         y = o.y + 4 + (height - 8) * g / grid
-        dl.add_line(ImVec2(o.x + 2, y), ImVec2(o.x + w - 2, y),
+        dl.add_line(ImVec2(x0 + 2, y), ImVec2(o.x + w - 2, y),
                     _col(t.border, 0.55 if g in (0, grid) else 0.3), 1.0)
-    with fonts.use("label"):
-        dl.add_text(ImVec2(o.x + 6, o.y + 3), _col(t.text_mute, 0.9), f"{b:.4g}")
-        dl.add_text(ImVec2(o.x + 6, o.y + height - 16),
-                    _col(t.text_mute, 0.9), f"{a:.4g}")
+        if ticks:
+            with fonts.use("label"):
+                txt = fmt_v(b - (b - a) * g / grid)
+                ts = imgui.calc_text_size(txt)
+                dl.add_text(ImVec2(x0 - 6 - ts.x, y - ts.y * 0.5),
+                            _col(t.text_mute, 0.85), txt)
 
+    stored = []
     for i, d in enumerate(data):
         v = np.asarray(d, np.float64).ravel()
         if v.size < 2:
             continue
-        xs = o.x + np.linspace(4.0, w - 4.0, v.size)
+        xs = x0 + np.linspace(4.0, (w - gutter) - 4.0, v.size)
         ys = o.y + height - 6.0 - (v - a) / (b - a) * (height - 12.0)
         pts = [ImVec2(float(x), float(y)) for x, y in zip(xs, ys)]
         if fill:
             _under(dl, pts, o.y + height - 4, _col(cols[i], 0.13))
         dl.add_polyline(pts, _col(cols[i], 0.95), 1.7, 0)
         dl.add_circle_filled(pts[-1], 2.6, _col(cols[i]))
+        stored.append((pts, v))
+    if tooltip and stored:
+        n = max(len(v) for _, v in stored)
+        k = _hover_slot(ImVec2(x0, o.y), w - gutter, height, n)
+        if k is not None:
+            x = x0 + 4 + (w - gutter - 8) * (k / max(1, n - 1))
+            dl.add_line(ImVec2(x, o.y + 2), ImVec2(x, o.y + height - 2),
+                        _col(t.text_mute, 0.45), 1.0)
+            parts = []
+            for i, (pts, v) in enumerate(stored):
+                if k < len(pts):
+                    dl.add_circle_filled(pts[k], 3.4, _col(cols[i]))
+                    parts.append(f"{names[i]} {fmt_v(float(v[k]))}")
+            head = (x_labels[k] + "\n") if x_labels and k < len(x_labels) else ""
+            imgui.set_tooltip(head + "\n".join(parts))
     imgui.dummy(ImVec2(w, height))
 
     if legend:
@@ -171,7 +232,8 @@ def plot(series, width=0.0, height=120.0, lo=None, hi=None, grid=4,
 # --- bars --------------------------------------------------------------
 
 def bars(values, width=0.0, height=60.0, colour=None, gap=2.0, lo=None,
-         hi=None, highlight=None, ground=True):
+         hi=None, highlight=None, ground=True, labels=None, value_fmt=None,
+         tooltip=False):
     """Vertical bars. `highlight` indexes one to pick out in the accent."""
     t = theme_mod.current()
     dl = imgui.get_window_draw_list()
@@ -193,6 +255,11 @@ def bars(values, width=0.0, height=60.0, colour=None, gap=2.0, lo=None,
                                _col(t.accent_bright if hot else c,
                                     1.0 if hot else 0.72),
                                min(2.0, bw * 0.3))
+        if tooltip:
+            k = _hover_slot(o, w, height, int(v.size))
+            if k is not None:
+                _tip(labels[k] if labels and k < len(labels) else "",
+                     float(v[k]), value_fmt)
     imgui.dummy(ImVec2(w, height))
 
 

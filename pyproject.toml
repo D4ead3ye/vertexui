@@ -1,13 +1,14 @@
 [project]
 name = "vertexui"
-version = "1.3.0"
+version = "1.4.0"
 description = "A UI toolkit for Dear ImGui built to make tools that do not look alike: whole-identity profiles, six layouts, slot/module composition, drawn data graphics, synthesised sound and click-through toasts."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.9"
 keywords = ["imgui", "gui", "ui", "toolkit", "dark-theme", "desktop",
             "shader", "glsl", "particles", "notifications", "dataviz",
-            "sparkline", "composition", "theming"]
+            "sparkline", "composition", "theming", "table", "forms",
+            "i18n", "icons"]
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",

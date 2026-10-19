@@ -65,6 +65,7 @@ def shots(app, bare):
         ("log.png", tab(5, running=True)),
         ("settings.png", tab(6)),
         ("graphics.png", tab(7)),
+        ("forms.png", tab(9)),
     ]
     for scene in SCENE_TILES:
         def go(s=scene):

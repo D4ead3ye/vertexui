@@ -70,6 +70,11 @@ class Theme:
     # scale - applied on top of everything, so one value adjusts density
     text_scale: float = 1.0
     row_scale: float = 1.0
+    # Zoom. Distinct from text_scale, which only changes type: this scales
+    # the pixel sizes widgets are built from, so controls grow with the
+    # text instead of the text outgrowing its box. An accessibility knob,
+    # and the reason a 'easy to read across the room' mode is possible.
+    ui_scale: float = 1.0
 
     # shape
     rounding: float = 7.0
@@ -93,11 +98,13 @@ class Theme:
                        accent_bright=_shift(colour, 1.30),
                        accent_dim=_shift(colour, 0.42))
 
-    def scaled(self, text: float = None, rows: float = None) -> "Theme":
+    def scaled(self, text: float = None, rows: float = None,
+               ui: float = None) -> "Theme":
         t = replace(self,
                     text_scale=self.text_scale if text is None else text,
-                    row_scale=self.row_scale if rows is None else rows)
-        r = t.row_scale
+                    row_scale=self.row_scale if rows is None else rows,
+                    ui_scale=self.ui_scale if ui is None else ui)
+        r = t.row_scale * t.ui_scale
         return replace(t,
                        padding=ImVec2(16 * r, 14 * r),
                        frame_padding=ImVec2(14 * r, 8 * r),
@@ -158,6 +165,22 @@ def to_hex(c: ImVec4) -> str:
 # backwards. These answer "which way is foreground" from the theme itself,
 # which is what lets the same widget code draw on a dark panel and on
 # paper without a branch in every widget.
+
+def u32(c: ImVec4, alpha: float = None) -> int:
+    """Pack a colour for the draw list, optionally overriding alpha.
+
+    Three projects wrote this same two-line helper before it lived here;
+    `imgui.get_color_u32(theme.with_alpha(c, a))` is the thing it replaces
+    and it appears a dozen times in a single screen.
+    """
+    return imgui.get_color_u32(c if alpha is None else with_alpha(c, alpha))
+
+
+def px(n: float, theme: "Theme" = None) -> float:
+    """A pixel size in the current zoom. Use for any hand-written
+    dimension that should grow when the user turns the interface up."""
+    return n * (theme or current()).ui_scale
+
 
 def luminance(c: ImVec4) -> float:
     """Perceived brightness, 0..1 (Rec. 709 weights)."""

@@ -68,6 +68,8 @@ Current pairs:
 
 * `examples/profiler.py` (dense, data-rich) against `examples/tuner.py`
   (one number, no navigation)
+* `examples/ledger.py` (4,000-row table, search, dialogs) against
+  `examples/intake.py` (one form, one screen, zoomed up)
 * `examples/watchtower.py` - identical modules under every profile, via
   `--profile`, including a headless corner HUD under `--hud`
 * `examples/minimal.py` against `examples/ambience.py`
@@ -76,6 +78,18 @@ Current pairs:
 captures of one application under seven profiles. If they ever start
 looking like one program in seven colours, this document is wrong and the
 code needs fixing, not the README.
+
+## 5. Promote what gets written twice
+
+When a project built on this toolkit has to write a piece of general UI
+itself, that is a defect report about the toolkit. Before adding a local
+helper, check whether it belongs here instead; when the same helper turns
+up in a second project, it does.
+
+`notices.note` reached six projects and two copies were byte-for-byte
+identical before anyone noticed. The icon set went from 16 to 46 because
+three projects shipped overlapping packs. `icons.register()` exists so the
+next one extends the set rather than forking it.
 
 ## House conventions
 
@@ -90,6 +104,10 @@ code needs fixing, not the README.
   `path_stroke(col, thickness, flags)`.
 * Widget identity comes from the label. Two widgets sharing one in the
   same window is a hard ImGui error - pass `key=`.
+* Hand-written pixel sizes go through `theme.px()` so the UI zoom reaches
+  them, and colours through `theme.u32()`.
+* This binding has no `get_window_content_region_max`; derive a full-width
+  span from `get_window_pos` + `get_window_size` less the scrollbar.
 * A card owns its own `ImDrawListSplitter`, which is what makes nesting
   legal. Do not go back to `draw_list.channels_split`.
 

@@ -200,12 +200,15 @@ class Stage(Layout):
         w = min(self.width, avail.x * 0.92)
         imgui.dummy(ImVec2(max(0.0, (avail.x - w) * 0.5), 0))
         imgui.same_line()
-        imgui.begin_group()
+        # Scrollable: a stage is a column, and a column of content taller
+        # than the window is simply unreachable without this - which a
+        # form of any length hits on the first screen.
+        imgui.begin_child("##stage", ImVec2(w, 0))
         imgui.push_item_width(w)
         app.slots.draw("chrome", app)
         self.page_body(app)
         imgui.pop_item_width()
-        imgui.end_group()
+        imgui.end_child()
         if app.slots.has("status"):
             imgui.dummy(ImVec2(0, 10))
             imgui.dummy(ImVec2(max(0.0, (avail.x - w) * 0.5), 0))

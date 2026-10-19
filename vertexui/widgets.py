@@ -39,6 +39,11 @@ def button(label, width=0.0, height=36.0, primary=False, enabled=True,
     cannot render as a tofu box.
     """
     t = theme_mod.current()
+    # Zoom scales the box, not just the type inside it - otherwise turning
+    # the interface up makes the text outgrow its control.
+    height = theme_mod.px(height, t)
+    if width > 0:
+        width = theme_mod.px(width, t)
     dl = imgui.get_window_draw_list()
     key = key or label
     icon_w = 0.0 if not icon else height * 0.5
@@ -108,6 +113,7 @@ def checkbox(label, value: bool, box=18.0, key=None) -> bool:
     """Three things ease independently: the hover lift, the fill as it turns
     on, and the tick drawing itself in rather than appearing whole."""
     t = theme_mod.current()
+    box = theme_mod.px(box, t)
     dl = imgui.get_window_draw_list()
     key = key or label
     pos = imgui.get_cursor_screen_pos()
@@ -522,6 +528,7 @@ def badge(text, kind="info", icon=None):
 def icon_button(name, size=30.0, tooltip=None, key=None) -> bool:
     """A square icon-only button, for toolbars and title bars."""
     t = theme_mod.current()
+    size = theme_mod.px(size, t)
     dl = imgui.get_window_draw_list()
     key = key or name
     pos = imgui.get_cursor_screen_pos()

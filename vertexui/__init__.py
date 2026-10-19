@@ -10,6 +10,12 @@ Each piece is usable on its own:
     widgets   buttons, tabs, sliders, colour picker, badges - all animated
     cards     the panels an interface is built out of, in four styles
     graphics  sparklines, dials, meters, heatmaps - drawn, theme-coloured
+    inputs    text fields, switches, segmented controls, chips, steppers
+    table     sortable, selectable, clipped rows of data
+    dialogs   modals, a scrim, and a registry so anything can open one
+    notices   note, banner, empty state, and an in-window message tray
+    fmt       durations, sizes, counts, and text that fits its box
+    i18n      strings in more than one language, with a sane fallback
     compose   slots, modules, pages, hooks and a connector bus
     layouts   six chrome shapes: tabbed, rail, dense, stage, hud, split
     profiles  whole identities - palette, shape, type, density, motion
@@ -45,15 +51,17 @@ them - numpy and PyOpenGL are only touched if you touch those modules.
 
 import importlib
 
-from . import (anim, cards, compose, fonts, icons, layouts, logview,
-               profiles, settings, sound, theme, widgets)
+from . import (anim, cards, compose, dialogs, fmt, fonts, i18n, icons,
+               inputs, layouts, logview, notices, profiles, settings, sound,
+               table, theme, widgets)
 
-__all__ = ["anim", "backdrop", "cards", "compose", "effects", "fonts",
-           "graphics", "icons", "layouts", "logview", "profiles", "settings",
-           "sound", "theme", "widgets", "toasts", "install", "end_frame",
+__all__ = ["anim", "backdrop", "cards", "compose", "dialogs", "effects",
+           "fmt", "fonts", "graphics", "i18n", "icons", "inputs", "layouts",
+           "logview", "notices", "profiles", "settings", "sound", "table",
+           "theme", "toasts", "widgets", "install", "end_frame",
            "App", "Module"]
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 _LAZY = ("toasts", "effects", "backdrop", "graphics")
 

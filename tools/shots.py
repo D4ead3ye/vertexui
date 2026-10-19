@@ -38,6 +38,11 @@ def shots(app, bare):
     def tab(i, **kw):
         def go():
             bare[0] = False
+            # Clear the ambience the hero shot turns on. These stills are
+            # of the widgets; the backdrop has its own section, and a red
+            # cloud behind a settings panel documents neither well.
+            app.bg.set("none")
+            app.fx.set("none")
             app.tab = i
             for k, v in kw.items():
                 setattr(app, k, v)
@@ -59,6 +64,7 @@ def shots(app, bare):
         ("icons.png", tab(3)),
         ("log.png", tab(5, running=True)),
         ("settings.png", tab(6)),
+        ("graphics.png", tab(7)),
     ]
     for scene in SCENE_TILES:
         def go(s=scene):

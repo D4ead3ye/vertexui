@@ -9,6 +9,10 @@ Each piece is usable on its own:
     icons     vector icons drawn from primitives - no font, no atlas
     widgets   buttons, tabs, sliders, colour picker, badges - all animated
     cards     the panels an interface is built out of, in four styles
+    graphics  sparklines, dials, meters, heatmaps - drawn, theme-coloured
+    compose   slots, modules, pages, hooks and a connector bus
+    layouts   six chrome shapes: tabbed, rail, dense, stage, hud, split
+    profiles  whole identities - palette, shape, type, density, motion
     logview   a log pane that glides instead of yanking to the bottom
     settings  a ready-made settings panel, and the object behind it
     toasts    click-through notifications drawn over another application
@@ -34,22 +38,28 @@ Minimal app:
 one call - the last of which is easy to miss and makes every animation look
 broken at 9fps if you do.
 
-`toasts`, `effects` and `backdrop` are imported on first use rather than up
-front, so a project that wants none of them pays for none of them - numpy
-and PyOpenGL are only touched if you touch those modules.
+`toasts`, `effects`, `backdrop` and `graphics` are imported on first use
+rather than up front, so a project that wants none of them pays for none of
+them - numpy and PyOpenGL are only touched if you touch those modules.
 """
 
 import importlib
 
-from . import anim, cards, fonts, icons, logview, settings, sound, theme, widgets
+from . import (anim, cards, compose, fonts, icons, layouts, logview,
+               profiles, settings, sound, theme, widgets)
 
-__all__ = ["anim", "backdrop", "cards", "effects", "fonts", "icons",
-           "logview", "settings", "sound", "theme", "widgets", "toasts",
-           "install", "end_frame"]
+__all__ = ["anim", "backdrop", "cards", "compose", "effects", "fonts",
+           "graphics", "icons", "layouts", "logview", "profiles", "settings",
+           "sound", "theme", "widgets", "toasts", "install", "end_frame",
+           "App", "Module"]
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
-_LAZY = ("toasts", "effects", "backdrop")
+_LAZY = ("toasts", "effects", "backdrop", "graphics")
+
+#: The two names a composed application actually needs.
+App = compose.App
+Module = compose.Module
 
 
 def __getattr__(name):

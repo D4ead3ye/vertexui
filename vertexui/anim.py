@@ -20,6 +20,19 @@ from imgui_bundle import ImVec4, imgui
 
 _values = {}
 _busy = False
+_rate = 1.0
+
+
+def set_rate(rate: float):
+    """Scale every chase in the app. Tempo is a big part of character:
+    the same panel at 0.6 feels considered and at 1.8 feels eager, and
+    neither is a colour choice. A profile sets this once."""
+    global _rate
+    _rate = max(0.05, min(6.0, float(rate)))
+
+
+def rate() -> float:
+    return _rate
 
 
 def to(key: str, target: float, speed: float = 14.0) -> float:
@@ -31,7 +44,7 @@ def to(key: str, target: float, speed: float = 14.0) -> float:
     global _busy
     dt = min(0.05, max(0.0001, imgui.get_io().delta_time))
     cur = _values.get(key, target)
-    cur += (target - cur) * (1.0 - math.exp(-speed * dt))
+    cur += (target - cur) * (1.0 - math.exp(-speed * _rate * dt))
     if abs(target - cur) < 0.001:
         cur = target
     else:

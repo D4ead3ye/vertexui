@@ -152,6 +152,46 @@ def to_hex(c: ImVec4) -> str:
                               int(round(c.z * 255)))
 
 
+# --- which way is up? --------------------------------------------------
+# A widget that wants to look raised cannot just add white, and one that
+# wants to look recessed cannot just add black: on a pale ground both read
+# backwards. These answer "which way is foreground" from the theme itself,
+# which is what lets the same widget code draw on a dark panel and on
+# paper without a branch in every widget.
+
+def luminance(c: ImVec4) -> float:
+    """Perceived brightness, 0..1 (Rec. 709 weights)."""
+    return 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z
+
+
+def is_light(theme: "Theme" = None) -> bool:
+    """True when the theme's ground is pale."""
+    return luminance((theme or current()).bg) > 0.5
+
+
+def ink(theme: "Theme" = None, on: ImVec4 = None) -> ImVec4:
+    """A colour that reads on top of `on` - the tick inside a checked box,
+    a label on an accent fill. Picks black or white by contrast rather than
+    assuming either."""
+    t = theme or current()
+    base = on if on is not None else t.accent
+    return ImVec4(0.04, 0.04, 0.05, 1.0) if luminance(base) > 0.55 \
+        else ImVec4(1.0, 1.0, 1.0, 1.0)
+
+
+def lift(c: ImVec4, amount: float, theme: "Theme" = None) -> ImVec4:
+    """Move `c` toward the foreground - lighter on a dark theme, darker on
+    a light one. For highlights, hover sheen, a raised edge."""
+    t = theme or current()
+    return lerp(c, t.text, amount)
+
+
+def sink(c: ImVec4, amount: float, theme: "Theme" = None) -> ImVec4:
+    """Move `c` toward the ground. For recesses, disabled states, shadow."""
+    t = theme or current()
+    return lerp(c, t.bg, amount)
+
+
 NOIR_RED = Theme(name="noir-red")
 
 # Two more so the mechanism is obviously usable, not just theoretically so.

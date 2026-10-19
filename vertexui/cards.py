@@ -29,13 +29,17 @@ underneath (`plate`, `card_head`, `meter`, `grad_fill`) take explicit
 coordinates and are just as public.
 """
 
-from imgui_bundle import ImVec2, imgui
+from imgui_bundle import ImVec2, ImVec4, imgui
 
 from . import fonts, icons
 from . import theme as theme_mod
 from .widgets import caps, caps_width
 
 STYLES = ("raised", "plated", "outlined", "flat")
+
+# Present in current imgui-bundle; the fallback keeps an older one working
+# for everything except nested cards.
+_Splitter = getattr(imgui, "ImDrawListSplitter", None)
 
 _style = "raised"
 _shadow = True
@@ -100,16 +104,30 @@ def plate(dl, x, y, w, h, t=None, edge=None, style=None, shadow=None):
     r = t.rounding
     p0, p1 = ImVec2(x, y), ImVec2(x + w, y + h)
 
+    light = theme_mod.is_light(t)
+
     if sh and st in ("raised", "plated"):
         # Three stacked rounded rects, each fainter and larger. Cheaper
         # than a blur and, at this size, indistinguishable from one.
+        # Black rather than the theme background: a shadow is cast light,
+        # not a tint, and on a pale theme tinting toward the ground paints
+        # a white glow where the shadow should be.
+        shade = ImVec4(0.0, 0.0, 0.0, 1.0)
         for i, a_ in ((3.0, 0.16), (6.0, 0.09), (10.0, 0.05)):
             dl.add_rect_filled(
                 ImVec2(x + 1.0, y + i * 0.5), ImVec2(x + w - 1.0, y + h + i),
-                imgui.get_color_u32(theme_mod.with_alpha(t.bg, a_)), r + i)
+                imgui.get_color_u32(
+                    theme_mod.with_alpha(shade, a_ * (0.75 if light else 1.0))),
+                r + i)
 
     if st == "raised":
-        grad_fill(dl, x, y, w, h, t)
+        # The lit edge is toward white on both grounds - but on a pale
+        # theme the surface is already there, so lifting it toward the
+        # text colour (which is what "toward the foreground" means
+        # elsewhere) would darken the top and read as upside down.
+        grad_fill(dl, x, y, w, h, t,
+                  top=t.surface if light
+                  else theme_mod.lerp(t.surface, t.text, 0.055))
     elif st != "outlined":
         dl.add_rect_filled(p0, p1, imgui.get_color_u32(t.surface), r)
 
@@ -120,7 +138,7 @@ def plate(dl, x, y, w, h, t=None, edge=None, style=None, shadow=None):
                     imgui.get_color_u32(theme_mod.with_alpha(t.border, 0.9)),
                     r, max(0.5, t.border_width))
 
-    if st == "raised":
+    if st == "raised" and not light:
         dl.add_line(ImVec2(x + r, y + 1.0), ImVec2(x + w - r, y + 1.0),
                     imgui.get_color_u32(theme_mod.with_alpha(t.text, 0.07)), 1.0)
 
@@ -214,8 +232,22 @@ class card:
         if isinstance(self.pad, (int, float)):
             self.pad = ImVec2(float(self.pad), float(self.pad))
         self._dl = imgui.get_window_draw_list()
-        self._dl.channels_split(2)
-        self._dl.channels_set_current(1)
+        # Each card owns its splitter rather than using the draw list's
+        # built-in one. A card inside a card is an ordinary thing to want -
+        # a layout that frames the page in a panel, a card holding a row of
+        # smaller ones - and the shared splitter asserts on the second
+        # split with "Nested channel splitting is not supported. Please use
+        # separate instances of ImDrawListSplitter." This is that.
+        # Nesting works because the inner card merges before the outer
+        # one does, so its plate lands inside the outer card's content
+        # channel, above the outer plate and below everything drawn after.
+        self._split = _Splitter() if _Splitter else None
+        if self._split is not None:
+            self._split.split(self._dl, 2)
+            self._split.set_current_channel(self._dl, 1)
+        else:                                   # pragma: no cover
+            self._dl.channels_split(2)
+            self._dl.channels_set_current(1)
 
         self._o = imgui.get_cursor_screen_pos()
         self._w = (self._width_arg if self._width_arg > 0
@@ -238,12 +270,18 @@ class card:
         imgui.end_group()
         h = imgui.get_item_rect_size().y
 
-        self._dl.channels_set_current(0)
+        if self._split is not None:
+            self._split.set_current_channel(self._dl, 0)
+        else:                                   # pragma: no cover
+            self._dl.channels_set_current(0)
         plate(self._dl, self._o.x, self._o.y, self._w, h, self._t,
               edge=self.edge, style=self.style, shadow=self.shadow)
         if self.title:
             card_head(self._dl, self._o.x, self._o.y, self._w, self._t,
                       self.icon, self.title, self.right, self.right_col,
                       self.dot)
-        self._dl.channels_merge()
+        if self._split is not None:
+            self._split.merge(self._dl)
+        else:                                   # pragma: no cover
+            self._dl.channels_merge()
         return False

@@ -60,7 +60,8 @@ OUT = ROOT / "docs" / "spotlight.gif"
 # drawn cursor, so a few pixels either way costs nothing.
 TAB_Y = 81
 TABS_X = {"controls": 60, "cards": 144, "theme": 222, "icons": 300,
-          "ambience": 389, "log": 470, "settings": 548}
+          "ambience": 389, "log": 470, "settings": 548, "graphics": 641,
+          "profiles": 732}
 BTN_Y = 123
 BTN_X = [81, 216, 346, 476, 606]           # Start Stop Warn Error Locked
 CHECK_Y = 176
@@ -71,7 +72,8 @@ SCENE_Y = 141                              # the scene row on Ambience
 SCENE_X = [68, 183, 298, 413, 528, 643, 758]
 
 
-TABS = ["controls", "cards", "theme", "icons", "ambience", "log", "settings"]
+TABS = ["controls", "cards", "theme", "icons", "ambience", "log",
+        "settings", "graphics", "profiles"]
 
 # Where the cursor starts, and where it has to finish for the loop to land.
 HOME = (TABS_X["controls"], TAB_Y)
@@ -147,10 +149,15 @@ def timeline(app):
     # Left to right along the row rather than hopping about it: the same
     # three scenes for two thirds of the travel.
     visit(TABS_X["ambience"], TAB_Y, tab("ambience"), 6)
-    for name, i in (("flow", 3), ("nebula", 4), ("grid", 5)):
+    for name, i in (("flow", 3), ("grid", 5)):
         visit(SCENE_X[i], SCENE_Y, scene(name), 10)
+    # --- the drawn graphics, which animate on their own ---------------
+    # Backdrop off here: the scenes had their own segment, and reading a
+    # plot through a perspective grid demonstrates neither of them.
+    visit(TABS_X["graphics"], TAB_Y,
+          lambda: (app.bg.set("none"), tab("graphics")())[-1], 32)
     # --- and the log glide, over the top ------------------------------
-    visit(TABS_X["log"], TAB_Y, tab("log"), 18)
+    visit(TABS_X["log"], TAB_Y, tab("log"), 16)
     # --- back to where it started, so the loop lands ------------------
     # The hold has to outlast everything still easing, which is longer
     # than the screen wipe alone: the tab indicator is still travelling

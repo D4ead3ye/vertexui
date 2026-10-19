@@ -8,14 +8,18 @@ the log glide - so the package can be checked in isolation before being
 wired into anything.
 """
 
+import math
 import random
 import time
+
+import numpy as np
 
 from imgui_bundle import ImVec2, ImVec4, hello_imgui, imgui
 
 import vertexui as vui
-from vertexui import (backdrop as bgmod, cards, effects, fonts, icons,
-                      logview, settings, sound, theme, widgets)
+from vertexui import (backdrop as bgmod, cards, effects, fonts, graphics,
+                      icons, logview, profiles, settings, sound, theme,
+                      widgets)
 
 SAMPLES = [
     ("ok", "net", "Connected to 10.0.0.4:8080"),
@@ -27,7 +31,10 @@ SAMPLES = [
     (None, "core", "Tick 4821 - queue depth 3"),
 ]
 
-TABS = ["Controls", "Cards", "Theme", "Icons", "Ambience", "Log", "Settings"]
+# New tabs are appended rather than inserted: tools/shots.py and
+# tools/spotlight.py address tabs by index.
+TABS = ["Controls", "Cards", "Theme", "Icons", "Ambience", "Log", "Settings",
+        "Graphics", "Profiles"]
 
 
 class Demo:
@@ -44,6 +51,16 @@ class Demo:
         self.st.apply(self.log, backdrop=self.bg, effects=self.fx)
         self._next = 0.0
         self._progress = 0.0
+        self.profile = "noir"
+        rng = np.random.default_rng(4)
+        self.sig = np.cumsum(rng.normal(0, 1, 120)) + 18
+        self.sig2 = np.cumsum(rng.normal(0, 1, 120)) + 10
+        self.grid = rng.random((6, 18)) ** 1.6
+        self.samples = rng.normal(0, 0.35, 1400) * np.linspace(1, .2, 1400)
+        self.spread = rng.normal(0, 1, (90, 2))
+        self.marks = [(i * 0.7 + rng.random(),
+                       str(rng.choice(["ok", "ok", "warn", "error", "info"])))
+                      for i in range(26)]
         for _ in range(30):
             self._emit()
 
@@ -312,6 +329,101 @@ class Demo:
         settings.panel(self.st, self.log, backdrop=self.bg, effects=self.fx,
                        on_change=lambda s: self.notify("info", "Settings applied"))
 
+    def graphics_tab(self):
+        t = theme.current()
+        imgui.text_colored(t.text_dim,
+                           "Drawn on the draw list from the theme's colours - "
+                           "no plotting library, no texture, no asset.")
+        imgui.dummy(ImVec2(0, 8))
+        avail = imgui.get_content_region_avail().x
+        beat = time.time()
+
+        widgets.section("dials and meters")
+        graphics.gauge(62 + 30 * math.sin(beat * 0.6), 0, 120, radius=44,
+                       label="THROUGHPUT", unit="req/s")
+        imgui.same_line(0, 22)
+        graphics.ring(0.5 + 0.45 * math.sin(beat * 0.4), radius=40)
+        imgui.same_line(0, 22)
+        graphics.levels(np.clip(0.5 + 0.45 * np.sin(beat * 2 + np.arange(5)), 0, 1),
+                        150, 86, peaks=[0.95, 0.8, 0.9, 0.7, 0.85])
+        imgui.same_line(0, 22)
+        imgui.begin_group()
+        imgui.text_colored(t.text_dim, "pips")
+        graphics.pips(12, 7 + int(3 * math.sin(beat)))
+        imgui.dummy(ImVec2(0, 6))
+        imgui.text_colored(t.text_dim, "sparkline")
+        graphics.sparkline(self.sig, 190, 40)
+        imgui.end_group()
+
+        imgui.dummy(ImVec2(0, 8))
+        widgets.section("series")
+        graphics.plot({"load": self.sig, "queue": self.sig2},
+                      avail * 0.55, 130, fill=True)
+        imgui.same_line(0, 18)
+        imgui.begin_group()
+        imgui.text_colored(t.text_dim, "heatmap")
+        graphics.heatmap(self.grid, cell=13.0)
+        imgui.text_colored(t.text_dim, "histogram")
+        graphics.histogram(self.sig, 22, avail * 0.36, 60)
+        imgui.end_group()
+
+        imgui.dummy(ImVec2(0, 8))
+        widgets.section("signal and events")
+        graphics.waveform(self.samples, avail * 0.52, 74)
+        imgui.same_line(0, 18)
+        graphics.scatter(self.spread, avail * 0.4, 74)
+        graphics.timeline(self.marks, avail, 42)
+
+    def profiles_tab(self):
+        t = theme.current()
+        imgui.text_colored(t.text_dim,
+                           "A profile is a whole identity - palette, shape, "
+                           "density, type, motion and chrome. Click one:")
+        imgui.dummy(ImVec2(0, 8))
+        for name in profiles.names():
+            p = profiles.get(name)
+            if widgets.button(name, 128, primary=(name == self.profile),
+                              key=f"prof:{name}"):
+                self.profile = name
+                p.apply("vertexui-demo")
+                self.notify("info", f"Profile: {name}")
+            imgui.same_line()
+        imgui.new_line()
+        cur = profiles.get(self.profile)
+        imgui.text_colored(t.text_mute, cur.blurb)
+
+        imgui.dummy(ImVec2(0, 8))
+        imgui.text_colored(t.warn,
+                           "Layout and typeface are the other half, and this "
+                           "window cannot show them: the chrome here is the "
+                           "demo's own, and the font atlas is built once at "
+                           "startup. See examples/watchtower.py --profile "
+                           + self.profile)
+
+        imgui.dummy(ImVec2(0, 10))
+        widgets.section(f"{self.profile}: this is what changed")
+        half = (imgui.get_content_region_avail().x - 18) * 0.5
+        with cards.card("sample card", icon="bolt", right=cur.layout.name,
+                        width=half) as c:
+            imgui.text_colored(t.text_dim,
+                               f"radius {t.rounding:.0f}   border "
+                               f"{t.border_width:.1f}   rows {t.row_scale:.2f}"
+                               f"   motion {vui.anim.rate():.2f}x")
+            widgets.button("Primary", 120, primary=True, key="pf:a")
+            imgui.same_line()
+            widgets.button("Normal", 110, key="pf:b")
+            imgui.same_line()
+            widgets.badge("ok", "ok")
+            graphics.sparkline(self.sig, c.width, 34)
+        imgui.same_line()
+        with cards.card("status colours", width=half) as c:
+            for kind in ("ok", "warn", "error", "info"):
+                widgets.badge(kind, kind)
+                imgui.same_line()
+            imgui.new_line()
+            graphics.plot({"a": self.sig, "b": self.sig2}, c.width, 76,
+                          legend=False, fill=True)
+
     # -- plumbing -------------------------------------------------------
     def notify(self, kind, text):
         if self.tray is not None:
@@ -348,7 +460,8 @@ class Demo:
         self.tab = widgets.tabs("demo", TABS, self.tab)
         self.wipe.to(self.tab)
         (self.controls, self.card_tab, self.theming, self.icon_sheet,
-         self.ambience, self.log_tab, self.settings_tab)[self.tab]()
+         self.ambience, self.log_tab, self.settings_tab, self.graphics_tab,
+         self.profiles_tab)[self.tab]()
 
         # Second pass, same particles, over the top - on the window's own
         # list after the content, so it sits above everything drawn this

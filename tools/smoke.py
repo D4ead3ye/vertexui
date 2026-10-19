@@ -21,10 +21,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from imgui_bundle import ImVec2, hello_imgui, imgui      # noqa: E402
 
-from vertexui import cards, effects                      # noqa: E402
+from vertexui import cards, effects, layouts, profiles    # noqa: E402
 from vertexui.demo import TABS, Demo                      # noqa: E402
 
 GRID = [(x, y) for y in range(0, 700, 55) for x in range(0, 1040, 80)]
+
+
+def composed():
+    """Every layout, driven by one module set.
+
+    The claim this repo makes is that modules survive a layout swap. A
+    claim like that needs something that fails when it stops being true.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    from watchtower import Feed, Jobs, Runner, Status
+
+    from vertexui import compose
+    out = []
+    for name in profiles.names():
+        prof = profiles.get(name)
+        runner = Runner()
+        app = compose.App(profile=prof, title="smoke", app_id="vertexui-smoke")
+        app.use(runner, Status(runner), Jobs(runner), Feed())
+        app.setup()
+        out.append((name, app, [p.key for p in app.pages]))
+    return out
 
 
 def main():
@@ -32,13 +53,36 @@ def main():
     app.running = True
     app.tray = None                       # no overlay window in a smoke run
     state = {"i": 0, "fails": 0, "frames": 0}
-    total = len(GRID) * len(TABS)
+    rigs = composed()
+    # every tab at every grid point, then every layout on every page
+    pages = sum(len(p) for _, _, p in rigs)
+    total = len(GRID) * len(TABS) + pages * 6
 
     def gui():
         i = state["i"]
         state["i"] += 1
         if i >= total:
             hello_imgui.get_runner_params().app_shall_exit = True
+            return
+
+        if i >= len(GRID) * len(TABS):
+            # second phase: the composed applications, one page each
+            k = i - len(GRID) * len(TABS)
+            flat = [(n, a, pk) for n, a, keys in rigs for pk in keys]
+            n, capp, pk = flat[(k // 6) % len(flat)]
+            capp.go(pk)
+            pos = GRID[k % len(GRID)]
+            imgui.get_io().mouse_pos = ImVec2(float(pos[0]), float(pos[1]))
+            try:
+                capp.frame()
+                state["frames"] += 1
+            except Exception:
+                state["fails"] += 1
+                print(f"\nprofile {n} layout {capp.profile.layout.name} "
+                      f"page {pk} mouse={pos}")
+                traceback.print_exc()
+                if state["fails"] > 5:
+                    hello_imgui.get_runner_params().app_shall_exit = True
             return
 
         app.tab = i // len(GRID)
@@ -72,8 +116,9 @@ def main():
                 faces=app.st.build_faces())
     hello_imgui.run(params)
 
-    print(f"\n{state['frames']} frames over {len(TABS)} tabs, "
-          f"{state['fails']} failed")
+    print(f"\n{state['frames']} frames: {len(TABS)} demo tabs + "
+          f"{len(rigs)} profiles x {len(set(p.layout.name for p in [profiles.get(n) for n, _, _ in rigs]))} "
+          f"layouts, {state['fails']} failed")
     return 1 if state["fails"] else 0
 
 

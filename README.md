@@ -20,6 +20,10 @@ generated or drawn, so vendoring the folder is the whole install.
 | `icons` | 16 vector icons drawn from primitives — no font, no atlas |
 | `widgets` | buttons, tabs, sliders, colour picker, badges — all animated |
 | `cards` | the panels an interface is built out of, in four styles |
+| `graphics` | sparklines, dials, meters, heatmaps — drawn, theme-coloured |
+| `compose` | slots, modules, pages, hooks and a connector bus |
+| `layouts` | six chrome shapes: tabbed, rail, dense, stage, hud, split |
+| `profiles` | whole identities — palette, shape, type, density, motion |
 | `logview` | a log pane that glides instead of yanking to the bottom |
 | `settings` | a ready-made settings panel, and the object behind it |
 | `toasts` | click-through notifications drawn *over another application* |
@@ -33,6 +37,136 @@ shader scenes and the log glide:
 pip install "vertexui[all] @ git+https://github.com/D4ead3ye/vertexui"
 python -m vertexui.demo
 ```
+
+## Profiles
+
+An accent picker cannot stop two tools looking like each other, because
+what makes them look the same is everything *except* the accent: the same
+tab strip, the same card radius, the same row height, the same two
+typefaces, the same easing speed.
+
+A profile is all of that at once, named after the kind of work it is for.
+
+![Seven profiles](docs/profiles.png)
+
+**That image is one application.** Same four modules, same data, seven
+profiles — and it is in the repo as `tools/matrix.py` precisely so the
+claim can be checked rather than believed.
+
+| profile | layout | for |
+|---|---|---|
+| `NOIR` | tabbed | the toolkit's original look, kept so nothing regresses |
+| `INSTRUMENT` | dense | telemetry and profiling — amber on slate, square corners, 0.82 density |
+| `CONSOLE` | dense | logs and command output — phosphor, mono throughout, zero radius |
+| `MINIMAL` | stage | one job, one number — no navigation, 14px corners, slow and quiet |
+| `REACTIVE` | rail | automation you watch — icon rail, strong status, quick motion |
+| `PAPER` | split | light ground, high contrast, for reading and screenshots |
+| `OVERLAY` | hud | a corner panel over someone else's application |
+
+```python
+app = compose.App(profile=profiles.INSTRUMENT)
+```
+
+Derive rather than copy — a project wants its own identity, not one of
+these seven verbatim:
+
+```python
+MINE = profiles.INSTRUMENT.variant(name="mine", accent="#7c5cff",
+                                   layout="rail", motion=1.4, density=0.9)
+```
+
+A profile carries palette, shape (radius, border width), the three
+typeface choices, text scale, row density, card style, **motion rate**,
+cue set and optional ambience. Tempo is a real part of character: the same
+panel at `motion=0.6` feels considered and at `1.8` feels eager, and
+neither is a colour.
+
+`PAPER` is light, and widgets handle that now — `theme.ink`, `theme.lift`,
+`theme.sink` and `theme.is_light` replace the assumption that foreground
+means "add white". A checkbox tick contrasts with the box it is in, a
+primary button's label contrasts with its own fill rather than with the
+panel behind it, and a card's shadow is cast light rather than a tint
+toward the background.
+
+## Composition
+
+Modules say *what* they contribute. A layout — picked by the profile, not
+by the module — decides what becomes of it.
+
+```python
+class Rates(compose.Module):
+    name = "rates"
+
+    def setup(self, app):
+        app.page("rates", "Rates", icon="bolt", draw=self.body)
+        app.slot("status", self.status)
+        app.bus.on("tick", self.on_tick)
+
+app = compose.App(profile=profiles.REACTIVE, title="rates")
+app.use(Rates(), Alerts())
+app.run()
+```
+
+Three composition points, and none of them is subclassing:
+
+* **slots** — `chrome`, `nav`, `body`, `aside`, `status`, `overlay`. A
+  layout draws the ones it has room for and ignores the rest, which is how
+  one module set survives a layout with no sidebar.
+* **hooks** — `setup`, `frame_begin`, `frame_end`, `teardown`, for work
+  that is not drawing.
+* **bus** — publish/subscribe by topic. A module emits `"job.done"`
+  without knowing whether anything listens; a notifier listens without
+  importing what emits. A subscriber that raises is reported and skipped,
+  never allowed to take the frame.
+
+The test for whether this is working: can the application become a
+genuinely different program by changing its profile and nothing else? If a
+module has to change, that module knows something it should not.
+
+## Layouts
+
+```python
+profiles.INSTRUMENT.variant(layout="rail")      # or an instance
+```
+
+| | |
+|---|---|
+| `TABBED` | title, tab strip, page below. For a handful of equal-weight views |
+| `RAIL` | icons down the left edge, no tab strip. Many views, content is the subject |
+| `DENSE` | one hairline strip of chrome. Everything else is content |
+| `STAGE` | one centred column, no navigation at all |
+| `HUD` | a small corner panel over nothing |
+| `SPLIT` | page and aside side by side |
+
+A layout declares what it `accepts`, so a module filling `aside` on a
+layout that has none is not an error — it simply does not get drawn.
+
+## Graphics
+
+![Graphics](docs/graphics.png)
+
+The quickest way to make two tools built on one toolkit look like two
+different tools is to let each show its data in the shape that data
+actually has. All drawn on the draw list from the theme's own colours — no
+plotting library, no texture, nothing to ship.
+
+```python
+graphics.sparkline(history, 200, 34)
+graphics.gauge(temp, 0, 300, label="NOZZLE", unit="C")
+graphics.plot({"cpu": cpu, "mem": mem}, fill=True)
+graphics.levels([left, right], peaks=[l_pk, r_pk])
+```
+
+`sparkline` `plot` `bars` `histogram` `levels` `gauge` `ring` `heatmap`
+`scatter` `waveform` `timeline` `pips`. Pass `width=0` to fill the
+available width; everything advances the cursor, so these sit in a column
+with ordinary widgets and inside cards.
+
+Two that are worth the pixels over a number: a sparkline's **head dot**,
+because without one the eye has to find the right-hand end before it can
+read "now"; and `levels` going hot near the top, because a meter that
+stays one colour makes you read the number to find out whether it is
+clipping.
 
 ## Minimal app
 
@@ -503,8 +637,9 @@ makes it survive PyInstaller without a `--add-data` line.
 `theme`, `anim`, `fonts`, `icons`, `widgets`, `cards`, `effects`,
 `backdrop` and `logview` are cross-platform.
 
-`toasts`, `effects` and `backdrop` are imported on first touch rather than
-up front, so a project that wants none of them pays for none of them.
+`toasts`, `effects`, `backdrop` and `graphics` are imported on first touch
+rather than up front, so a project that wants none of them pays for none of
+them.
 
 Every module degrades rather than raising: a missing font role renders in
 the default face, an unknown icon draws nothing, and a machine with no
@@ -512,8 +647,12 @@ audio device disables sounds after reporting why.
 
 ## Contributing
 
-Issues and pull requests welcome. Two conventions worth knowing before you
-open one:
+Issues and pull requests welcome. [`CLAUDE.md`](CLAUDE.md) is the working
+brief this repo is built to — four rules, of which the load-bearing one is
+that **layout belongs to the profile, never to a module**. A panel that
+knows it lives under a tab strip has made every other layout impossible.
+
+Conventions worth knowing before you open a PR:
 
 * **colour names are semantic.** `accent`, `surface`, `danger` — never
   `red` or `dark_grey`. A palette named after what the colours *are* stops
@@ -521,9 +660,26 @@ open one:
 * **nothing raises from a draw call.** A frame that throws takes the whole
   window down, so unknown icons, missing fonts and absent audio devices all
   degrade quietly instead.
+* **never assume a dark ground.** Use `theme.ink`, `theme.lift`,
+  `theme.sink` and `theme.is_light`. `profiles.PAPER` is light and has to
+  keep working.
+* **this binding's draw-list argument order is not the C++ order:**
+  `add_rect(p_min, p_max, col, rounding, thickness, flags)`,
+  `add_polyline(points, col, thickness, flags)` with no defaults, and
+  `path_stroke(col, thickness, flags)`. Both of the bugs this repo has
+  shipped and fixed were this.
 
-`examples/` runs each piece on its own — `minimal.py`, `notifications.py`,
-`ambience.py`.
+Every feature ships with **two contrasting examples**, because one shows
+that a thing runs and two opposed ones show that it is actually modular:
+
+| | |
+|---|---|
+| `examples/profiler.py` | dense, data-rich — sparklines, heatmap, histogram, shared plot |
+| `examples/tuner.py` | the opposite — one number, no navigation, nothing else |
+| `examples/watchtower.py` | **identical modules under every profile** — `--profile paper`, `--hud` |
+| `examples/minimal.py` | twelve lines |
+| `examples/ambience.py` | backdrop, particles and cards together |
+| `examples/notifications.py` | the toast overlay on its own |
 
 `python tools/smoke.py` draws every screen in every state — each tab, each
 card style, each effect, with the cursor swept over a grid — and fails if
@@ -531,6 +687,11 @@ any frame raises. It exists because a wrong argument order sits silent until
 the one frame that hits it: `add_rect` in this binding takes
 `(rounding, thickness, flags)` rather than the C++ order, and the resulting
 `TypeError` only ever fired on a frame where a widget was hovered.
+`python tools/matrix.py tile` regenerates `docs/profiles.png` — the
+falsifiable version of the profile claim. If those seven tiles ever start
+looking like one program in seven colours, the README is wrong and the
+code needs fixing.
+
 `python tools/shots.py` regenerates every still in `docs/`, and
 `python tools/spotlight.py` re-records the looping clip at the top — it
 records and encodes as separate stages, so re-encoding to tune the palette

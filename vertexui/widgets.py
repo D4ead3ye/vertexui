@@ -63,7 +63,9 @@ def button(label, width=0.0, height=36.0, primary=False, enabled=True,
     top = t.accent if primary else t.surface_hover
     fill = anim.lerp_col(base, top, hot)
     if not enabled:
-        fill = ImVec4(fill.x * 0.5, fill.y * 0.5, fill.z * 0.5, 0.6)
+        # Toward the ground, not toward black: halving the channels reads
+        # as "disabled" on a dark panel and as a dirty smudge on a pale one.
+        fill = theme_mod.with_alpha(theme_mod.sink(fill, 0.55, t), 0.75)
 
     inset = 1.0 * press           # sinks rather than jumping to a third colour
     p0 = ImVec2(pos.x, pos.y + inset)
@@ -79,7 +81,12 @@ def button(label, width=0.0, height=36.0, primary=False, enabled=True,
                            imgui.get_color_u32(t.accent_bright), 1.0)
 
     ts = imgui.calc_text_size(label)
-    col = anim.lerp_col(t.text if enabled else t.text_mute, t.text, hot)
+    if primary and enabled:
+        # against the fill, which on a pale theme is not the same colour
+        # as against the panel
+        col = theme_mod.ink(t, fill)
+    else:
+        col = anim.lerp_col(t.text if enabled else t.text_mute, t.text, hot)
     block = ts.x + (icon_w + 6 if icon else 0)
     tx = pos.x + (width - block) * 0.5
     if icon:
@@ -135,7 +142,8 @@ def checkbox(label, value: bool, box=18.0, key=None) -> bool:
         a = ImVec2(cx - box * 0.22, cy + box * 0.02)
         b = ImVec2(cx - box * 0.06, cy + box * 0.18)
         c = ImVec2(cx + box * 0.24, cy - box * 0.18)
-        ink = imgui.get_color_u32(ImVec4(1, 1, 1, min(1.0, on * 1.4)))
+        ink = imgui.get_color_u32(theme_mod.with_alpha(
+            theme_mod.ink(t, fill), min(1.0, on * 1.4)))
         t1 = min(1.0, on / 0.45)
         dl.add_line(a, ImVec2(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1), ink, 2.2)
         if on > 0.45:
@@ -183,7 +191,8 @@ def tabs(key: str, labels, current: int) -> int:
         if hot > 0.01 and not on:
             dl.add_rect_filled(ImVec2(xs[i], origin.y),
                                ImVec2(xs[i] + widths[i], origin.y + h),
-                               imgui.get_color_u32(ImVec4(1, 1, 1, 0.045 * hot)),
+                               imgui.get_color_u32(theme_mod.with_alpha(
+                                   t.text, 0.055 * hot)),
                                t.rounding)
         ts = imgui.calc_text_size(lbl)
         col = anim.lerp_col(t.text_dim, t.text, max(hot, 1.0 if on else 0.0))

@@ -30,6 +30,7 @@ generated or drawn, so vendoring the folder is the whole install.
 | `compose` | slots, modules, pages, hooks and a connector bus |
 | `layouts` | six chrome shapes: tabbed, rail, dense, stage, hud, split |
 | `profiles` | whole identities — palette, shape, type, density, motion |
+| `paint` | gradients, textures and shapes for skins and custom widgets |
 | `skins` | painter slots, for a theme that needs more than a palette |
 | `themes` | bundled themes — a profile plus its own drawing |
 | `logview` | a log pane that glides instead of yanking to the bottom |
@@ -290,6 +291,11 @@ and not found, so the translation to-do list writes itself.
 
 ## Themes
 
+![Three themes](docs/showreel.gif)
+
+*Three themed applications, then one of them flipping through every theme
+live.* `python tools/showreel.py`
+
 A profile is configuration — colours, shape, type, density, which layout.
 Some identities need *drawing*: a card that is parchment in an engraved
 brass frame with notched corners and a cross-hatched ink shadow is not a
@@ -298,9 +304,15 @@ palette, and no amount of tokens gets you there.
 So `skins` is a small set of optional painters a profile can carry:
 
 ```python
-Skin(plate=..., head=..., frame=..., hover_aura=..., press=...,
-     spinner=..., background=..., press_depth=2.4, press_snap=False)
+Skin(plate=..., head=..., frame=..., tabs=..., hover_aura=..., press=...,
+     spinner=..., background=..., corner=..., press_depth=2.4,
+     press_snap=False)
 ```
+
+`tabs` matters more than it sounds: navigation was the one piece of chrome
+no theme could touch, so all three looked identical there however
+different everything else was. They are inked index cards, chrome bevels
+and glass pills now.
 
 Where a painter is set the widget calls it; where it is not, nothing
 changes and the widget draws as it always did. Every painter may return
@@ -439,6 +451,50 @@ at its foot, micro bubbles rising, and ripple rings leaving its base.
 Buttons are glass pills that squash when pressed — this is what put the
 `press` painter to work, which had been declared on `Skin` since the
 start and never called by anything.
+
+## Switching themes at runtime
+
+A theme is a palette, a shape language, a density, a motion rate **and a
+pair of typefaces**, and until recently the last of those could not change
+without a restart — ImGui built its font atlas once at startup. In
+imgui-bundle 1.92 the atlas is dynamic, so it can:
+
+```python
+fonts.request(fonts.build_faces(ui="Georgia", display="Palatino"))
+# applied at the top of the next frame; compose.App does this for you
+```
+
+`Profile.apply()` and `Settings.apply()` both request it, which means the
+settings panel's theme picker and `compose.App` now switch themes
+completely — colour, shape, density, motion, sound, chrome *and* type —
+with no restart and no caveat in the UI.
+
+The atlas is cleared before reloading. Without that every swap adds
+another set of faces to it and a user playing with a theme picker grows
+the texture without limit; cleared and re-added it stays at exactly the
+number of roles, which is what the font-swap test checks. Thirty-one
+profile swaps across ten profiles run clean.
+
+## Drawing helpers
+
+`paint` exists because the first two themes each grew a private copy of
+the same four routines — a gradient fill in all three, a dot field in two,
+a glow in two, a chamfered polygon in two. That is the duplication signal
+from the application survey arriving from inside the toolkit, so it got
+the same answer.
+
+```python
+paint.grad_rect(dl, x, y, w, h, top, bottom, rounding=8)
+paint.gloss(dl, x, y, w, h, 8, white)        # wash + diagonal band
+paint.halftone(dl, x, y, w, h, ink)          # ben-day dots, 45°
+paint.bevel(dl, x, y, w, h, light, dark)     # the 1995 inset/outset rule
+paint.spiral(dl, cx, cy, 3, r, col)          # golden by default
+```
+
+`grad_rect` `grad_poly` `gloss` `halo` `bevel` `dots` `halftone` `hatch`
+`scanlines` `notched` `chamfered` `pill` `spiral`. None of them reads the
+theme — they take colours and sizes, which is the only way a helper
+survives contact with a look it was not written for.
 
 ## Minimal app
 

@@ -143,6 +143,51 @@ def loader(faces=None, fonts_dir=None, default_role="ui"):
     return load
 
 
+_pending = None
+
+
+def reload(faces=None, default_role="ui"):
+    """Swap the typefaces at runtime.
+
+    Needs an ImGui context and must not run while a font is pushed, so
+    prefer `request()` unless you know you are at the top of a frame.
+
+    The atlas is cleared first: without that every swap adds another set
+    of faces to it, and a user playing with a theme picker would grow the
+    texture without limit. Cleared and re-added it stays at exactly the
+    number of roles, which is what the font-swap test checks.
+    """
+    io_ = imgui.get_io()
+    io_.fonts.clear_fonts()
+    loader(faces, default_role=default_role)()
+    return roles()
+
+
+def request(faces=None, default_role="ui"):
+    """Ask for a reload at the start of the next frame. Safe anywhere."""
+    global _pending
+    _pending = (faces, default_role)
+
+
+def pump():
+    """Apply a requested reload. Call once at the top of a frame.
+
+    `compose.App` does this for you; an application driving its own loop
+    should call it before drawing anything.
+    """
+    global _pending
+    if _pending is None:
+        return False
+    faces, role = _pending
+    _pending = None
+    try:
+        reload(faces, role)
+        return True
+    except Exception as exc:          # pragma: no cover
+        print(f"[vertexui] font reload failed: {exc!r}")
+        return False
+
+
 def available() -> bool:
     return bool(_loaded)
 

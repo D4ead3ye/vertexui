@@ -158,6 +158,11 @@ class Profile:
         cards.set_style(self.card_style, self.card_shadow)
         anim.set_rate(self.motion)
         skins.use(self.skin)        # None puts the stock drawing back
+        # Swap the typefaces too, but only once there is a set to replace:
+        # at startup `install` has not loaded any yet, and asking here
+        # would just make the first frame do the work twice.
+        if fonts.available():
+            fonts.request(self.build_faces())
         if self.sound_set:
             # Same courtesy as Settings.apply: never over a set the
             # application built and installed itself.

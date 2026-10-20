@@ -139,6 +139,8 @@ class Settings:
             pass      # no ImGui context yet - install() will style it later
 
         cards.set_style(self.card_style, self.card_shadow)
+        if fonts.available():
+            fonts.request(self.build_faces())   # applied at the next frame
 
         # Install the configured set - but never over one the application
         # built and installed itself with sound.use(). A project with its
@@ -273,8 +275,6 @@ def panel(st: Settings, log: "logview.LogView" = None, extra=None,
                           list(fonts.DISPLAY_FACES), 190.0, "facedisp")
         changed |= _combo(st, "terminal", "face_mono", list(fonts.MONO_FACES),
                           190.0, "facemono")
-        imgui.same_line()
-        imgui.text_colored(t.warn, "restart to apply")
 
     if "backdrop" in show:
         from . import backdrop as backdrop_mod

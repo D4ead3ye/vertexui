@@ -107,8 +107,14 @@ Themes live in `vertexui/themes/` and register themselves into
 lists them without anything else changing.
 
 When a theme needs something no painter covers, add the painter to `Skin`
-rather than special-casing the theme - `head` and `press_snap` both came
-from Y2K and both are now available to every theme.
+rather than special-casing the theme - `head` and `press_snap` came from
+Y2K, `press` was finally used by Aero, and `tabs` came from noticing that
+all three themes shared one navigation strip. Every one of them is now
+available to all of them.
+
+A drawing routine written inside a second theme belongs in `paint`. That
+is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
+`halftone`, `bevel`, `dots` and `spiral` got there.
 
 ## House conventions
 
@@ -141,6 +147,7 @@ from Y2K and both are now available to every theme.
 
 ```bash
 python tools/smoke.py          # every screen, every state, every layout
+python tools/showreel.py       # re-record the three-theme clip
 python tools/matrix.py tile    # regenerate docs/profiles.png
 python tools/shots.py          # regenerate the stills
 python tools/spotlight.py      # re-record the looping clip

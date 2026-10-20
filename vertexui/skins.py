@@ -21,7 +21,7 @@ the `raised` card style and leave the other three alone.
 from dataclasses import dataclass, field
 
 __all__ = ["Skin", "use", "current", "clear", "painter",
-           "press_depth", "press_snap", "extra"]
+           "press_depth", "press_snap", "corner", "extra"]
 
 
 @dataclass
@@ -41,6 +41,11 @@ class Skin:
         Drawn over a control that is being hovered. `amount` is 0..1.
     press(dl, x0, y0, x1, y1, t, amount)
         Drawn over a control that is being pressed.
+    tabs(dl, x, y, w, h, t, rects, index, hots) -> bool
+        The navigation strip's ground and its active indicator. `rects` is
+        one (x, width) per tab, `hots` one 0..1 hover amount. Labels stay
+        with the widget - a skin owns the chrome, not the text. Return
+        True if you drew it.
     spinner(dl, cx, cy, r, t, phase)
         The busy indicator. `phase` is seconds, already running.
     background(dl, x, y, w, h, t, now)
@@ -57,6 +62,10 @@ class Skin:
     press: object = None
     spinner: object = None
     background: object = None
+    tabs: object = None
+    #: A radius override for widgets that draw their own rounded shapes
+    #: and have no painter of their own. A cheap way to make a theme
+    #: squarer or rounder without writing any drawing at all.
     corner: object = None
     press_depth: float = 1.0
     #: Skip the press easing entirely. Some looks are *about* not being
@@ -100,6 +109,20 @@ def painter(name):
 def press_depth():
     s = _active
     return s.press_depth if s is not None else 1.0
+
+
+def corner(default, t=None):
+    """The radius a widget should use, honouring any skin override."""
+    s = _active
+    fn = getattr(s, "corner", None) if s is not None else None
+    if fn is None:
+        return default
+    try:
+        from . import theme as theme_mod
+        got = fn(t or theme_mod.current())
+        return default if got is None else float(got)
+    except Exception:
+        return default
 
 
 def press_snap():

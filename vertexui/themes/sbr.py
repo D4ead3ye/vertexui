@@ -30,7 +30,7 @@ import math
 
 from imgui_bundle import ImVec2, imgui
 
-from .. import layouts, profiles, skins
+from .. import layouts, paint, profiles, skins
 from .. import theme as theme_mod
 from ..theme import Theme, rgb
 
@@ -66,50 +66,16 @@ GREEN_LIT = rgb("#d8f2e2")
 # --- geometry ----------------------------------------------------------
 
 def _notched(x, y, w, h, cut):
-    """An octagon - a rectangle with its corners cut off.
-
-    Notched rather than rounded: a cut corner reads as something stamped
-    or machined, where a radius reads as something moulded.
-    """
-    cut = max(2.0, min(cut, min(w, h) * 0.3))
-    return [ImVec2(x + cut, y), ImVec2(x + w - cut, y),
-            ImVec2(x + w, y + cut), ImVec2(x + w, y + h - cut),
-            ImVec2(x + w - cut, y + h), ImVec2(x + cut, y + h),
-            ImVec2(x, y + h - cut), ImVec2(x, y + cut)]
+    """From the shared helpers - an octagon reads as stamped metal."""
+    return paint.notched(x, y, w, h, cut)
 
 
 def _hatch(dl, x, y, w, h, col, step=5.0, thickness=1.0):
-    """Diagonal ink hatching, clipped to a box. What this theme uses
-    instead of a soft shadow - a blur is a photograph of a shadow, and
-    this interface is drawn."""
-    dl.push_clip_rect(ImVec2(x, y), ImVec2(x + w, y + h), True)
-    k = -h
-    while k < w:
-        dl.add_line(ImVec2(x + k, y + h), ImVec2(x + k + h, y), col, thickness)
-        k += step
-    dl.pop_clip_rect()
+    paint.hatch(dl, x, y, w, h, col, step, thickness)
 
 
 def _halftone(dl, x, y, w, h, col, step=6.0, fade=True):
-    """Ben-day dots on a 45-degree lattice.
-
-    Screentone is how a page gets a grey without a grey ink, and it is
-    most of why a manga panel looks like one. The dots grow toward the
-    bottom when `fade` is set, which is the same job a gradient does and
-    the way this medium actually does it.
-    """
-    dl.push_clip_rect(ImVec2(x, y), ImVec2(x + w, y + h), True)
-    rows = int(h / step) + 2
-    for r in range(rows):
-        gy = y + r * step
-        off = (r % 2) * step * 0.5           # the 45-degree offset
-        k = (r / max(1, rows - 1)) if fade else 1.0
-        size = 0.6 + 1.5 * (k ** 1.8)
-        gx = x + off
-        while gx < x + w:
-            dl.add_rect_filled(ImVec2(gx, gy), ImVec2(gx + size, gy + size), col)
-            gx += step
-    dl.pop_clip_rect()
+    paint.halftone(dl, x, y, w, h, col, step, fade)
 
 
 def _menacing(dl, x, y, s, col, thickness=None):
@@ -161,25 +127,9 @@ def _flourish(dl, x, y, s, col, sx=1, sy=1, thickness=1.6):
                          thickness * 0.95, col)
 
 
-def _spiral(dl, cx, cy, turns, outer, col, thickness=1.0, phase=0.0, steps=200):
-    """A golden spiral, drawn inward from `outer`.
-
-    It widens by phi every quarter turn, which is the definition and also
-    the catch: over three turns that is phi**12, so the only sane way to
-    draw one to a given size is to start at the outside and let it shrink
-    toward the centre. `phase` rotates it; it must not touch the radius,
-    or the motif pulses in and out instead of turning.
-    """
-    pts = []
-    for i in range(steps):
-        a = i / (steps - 1) * turns * math.tau
-        r = outer * (PHI ** (-a / (math.pi * 0.5)))
-        if r < 0.4:
-            break
-        pts.append(ImVec2(cx + math.cos(a + phase) * r,
-                          cy + math.sin(a + phase) * r))
-    if len(pts) > 1:
-        dl.add_polyline(pts, col, thickness, 0)
+def _spiral(dl, cx, cy, turns, outer, col, thickness=1.0, phase=0.0):
+    """The golden spiral, from the shared helper - PHI is its default."""
+    paint.spiral(dl, cx, cy, turns, outer, col, thickness, phase, growth=PHI)
 
 
 # --- painters ----------------------------------------------------------
@@ -489,9 +439,40 @@ def background(dl, x, y, w, h, t, now):
     return True
 
 
+def tabs(dl, x, y, w, h, t, rects, index, hots):
+    """Tabs as inked index cards, the selected one on top of the pile."""
+    if not rects:
+        return False
+    dl.add_line(ImVec2(x - 8, y + h - 1), ImVec2(x + w + 8, y + h - 1),
+                theme_mod.u32(INK, 0.55), 1.6)
+    for i, (tx, tw) in enumerate(rects):
+        on = i == index
+        top = y + (2 if on else 6)
+        body = paint.notched(tx, top, tw, h - (top - y) + 1, 7.0)
+        if on:
+            paint.grad_poly(dl, body, theme_mod.lerp(t.surface, BRASS_LIT, 0.3),
+                            t.surface)
+        else:
+            lift = 0.10 + 0.22 * hots[i]
+            paint.grad_poly(dl, body,
+                            theme_mod.lerp(t.bg, BRASS_LIT, lift),
+                            theme_mod.lerp(t.bg, BRASS, lift * 0.6))
+        dl.add_polyline(body + [body[0]],
+                        theme_mod.u32(INK, 0.8 if on else 0.4),
+                        1.8 if on else 1.1, 0)
+        if on:
+            # the card in front hides the rule beneath it
+            dl.add_line(ImVec2(tx + 2, y + h - 1), ImVec2(tx + tw - 2, y + h - 1),
+                        theme_mod.u32(t.surface), 2.4)
+            dl.add_rect_filled(ImVec2(tx + 7, top + 2),
+                               ImVec2(tx + tw - 7, top + 4),
+                               theme_mod.u32(t.accent, 0.95))
+    return True
+
+
 SKIN = skins.Skin(
     name="steel-ball-run",
-    plate=plate, head=head, frame=frame, hover_aura=hover_aura,
+    plate=plate, head=head, frame=frame, hover_aura=hover_aura, tabs=tabs,
     spinner=spinner, background=background,
     press_depth=2.4,            # a firm, engraved stamp
     extras={"phi": PHI, "brass": BRASS, "turquoise": TURQUOISE,

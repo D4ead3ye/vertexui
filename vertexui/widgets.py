@@ -198,6 +198,16 @@ def tabs(key: str, labels, current: int) -> int:
             xs.append(x)
             x += w + 4
 
+    # Measure the hover amounts first, so a skin that paints the whole
+    # strip gets them all at once and can draw behind every label.
+    hots = [anim.peek(f"tab:{key}:{i}") for i in range(len(labels))]
+    strip = skins.painter("tabs")
+    painted = False
+    if strip is not None:
+        painted = bool(strip(dl, origin.x, origin.y,
+                             (xs[-1] + widths[-1]) - origin.x if xs else 0.0,
+                             h, t, list(zip(xs, widths)), current, hots))
+
     selected = current
     for i, lbl in enumerate(labels):
         imgui.set_cursor_screen_pos(ImVec2(xs[i], origin.y))
@@ -209,12 +219,12 @@ def tabs(key: str, labels, current: int) -> int:
         hover_tick(f"tab:{key}:{i}", hovered)
         hot = anim.to(f"tab:{key}:{i}", 1.0 if hovered else 0.0, 16.0)
         on = i == current
-        if hot > 0.01 and not on:
+        if hot > 0.01 and not on and not painted:
             dl.add_rect_filled(ImVec2(xs[i], origin.y),
                                ImVec2(xs[i] + widths[i], origin.y + h),
                                imgui.get_color_u32(theme_mod.with_alpha(
                                    t.text, 0.055 * hot)),
-                               t.rounding)
+                               skins.corner(t.rounding, t))
         ts = imgui.calc_text_size(lbl)
         col = anim.lerp_col(t.text_dim, t.text, max(hot, 1.0 if on else 0.0))
         with fonts.use("semi"):
@@ -226,13 +236,15 @@ def tabs(key: str, labels, current: int) -> int:
     # object moving rather than two appearing. It spans the LABEL, not the
     # padded tab box - a rule that runs wider than the word it underlines
     # reads as a box someone forgot to finish.
-    with fonts.use("semi"):
-        label_w = imgui.calc_text_size(labels[current]).x
-    ix = anim.to(f"tabx:{key}", xs[current] + (widths[current] - label_w) * 0.5, 18.0)
-    iw = anim.to(f"tabw:{key}", label_w, 18.0)
-    dl.add_rect_filled(ImVec2(ix, origin.y + h - 3),
-                       ImVec2(ix + iw, origin.y + h - 0.5),
-                       imgui.get_color_u32(t.accent), 1.5)
+    if not painted:
+        with fonts.use("semi"):
+            label_w = imgui.calc_text_size(labels[current]).x
+        ix = anim.to(f"tabx:{key}",
+                     xs[current] + (widths[current] - label_w) * 0.5, 18.0)
+        iw = anim.to(f"tabw:{key}", label_w, 18.0)
+        dl.add_rect_filled(ImVec2(ix, origin.y + h - 3),
+                           ImVec2(ix + iw, origin.y + h - 0.5),
+                           imgui.get_color_u32(t.accent), 1.5)
 
     imgui.set_cursor_screen_pos(ImVec2(origin.x, origin.y + h + 8))
     return selected

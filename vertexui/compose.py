@@ -222,6 +222,8 @@ class App:
     def frame(self):
         """One frame. Call from your gui() if you are driving the loop."""
         from . import end_frame
+        from . import fonts
+        fonts.pump()                 # a profile swap lands here, not mid-draw
         for fn in self.hooks["frame_begin"]:
             fn(self)
         for m in self.modules:

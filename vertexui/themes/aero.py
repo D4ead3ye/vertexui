@@ -25,7 +25,7 @@ import math
 
 from imgui_bundle import ImVec2, imgui
 
-from .. import layouts, profiles, skins
+from .. import layouts, paint, profiles, skins
 from .. import theme as theme_mod
 from ..theme import Theme, rgb
 
@@ -54,55 +54,15 @@ AERO = Theme(
 # --- primitives --------------------------------------------------------
 
 def _grad_rect(dl, x, y, w, h, top, bottom, rounding=0.0):
-    """A rounded rect with a vertical gradient, by re-shading the
-    vertices the fill just emitted. KeepAlpha is the part that matters -
-    it leaves the anti-aliased corner coverage alone."""
-    i0 = dl.vtx_buffer.size()
-    dl.add_rect_filled(ImVec2(x, y), ImVec2(x + w, y + h),
-                       theme_mod.u32(top), rounding)
-    i1 = dl.vtx_buffer.size()
-    if i1 > i0:
-        imgui.internal.shade_verts_linear_color_gradient_keep_alpha(
-            dl, i0, i1, ImVec2(x, y), ImVec2(x, y + h),
-            theme_mod.u32(top), theme_mod.u32(bottom))
+    paint.grad_rect(dl, x, y, w, h, top, bottom, rounding)
 
 
 def _gloss(dl, x, y, w, h, rounding, strength=1.0, share=0.46):
-    """The specular sweep across the top of a glass surface.
-
-    Two parts, and both are needed: a broad wash over the top share of
-    the shape, and a narrow diagonal band crossing it. The wash alone
-    reads as a gradient; the band is what says the surface is hard and
-    catching a light source.
-    """
-    gh = h * share
-    _grad_rect(dl, x + 1, y + 1, w - 2, gh,
-               theme_mod.with_alpha(GLASS, 0.52 * strength),
-               theme_mod.with_alpha(GLASS, 0.0), rounding)
-    # the diagonal band, as a parallelogram clipped to the surface
-    dl.push_clip_rect(ImVec2(x, y), ImVec2(x + w, y + gh + 1), True)
-    bw = w * 0.42
-    bx = x + w * 0.04
-    dl.add_convex_poly_filled(
-        [ImVec2(bx, y + gh), ImVec2(bx + bw * 0.55, y),
-         ImVec2(bx + bw, y), ImVec2(bx + bw * 0.45, y + gh)],
-        theme_mod.u32(GLASS, 0.20 * strength))
-    dl.pop_clip_rect()
-    # the lit top edge - glass catching the sun along its rim
-    dl.add_line(ImVec2(x + rounding * 0.7, y + 1.2),
-                ImVec2(x + w - rounding * 0.7, y + 1.2),
-                theme_mod.u32(GLASS, 0.85 * strength), 1.4)
+    paint.gloss(dl, x, y, w, h, rounding, GLASS, strength, share)
 
 
 def _halo(dl, x, y, w, h, rounding, col, amount, rings=5, spread=9.0):
-    """A soft outer glow, as nested rounded rects of falling alpha. The
-    nearest a draw list gets to a blur, and at this radius the difference
-    is not visible."""
-    for i in range(rings, 0, -1):
-        g = spread * i / rings
-        dl.add_rect(ImVec2(x - g, y - g), ImVec2(x + w + g, y + h + g),
-                    theme_mod.u32(col, amount * 0.16 * (1.0 - i / (rings + 1))),
-                    rounding + g, 2.0)
+    paint.halo(dl, x, y, w, h, rounding, col, amount, rings, spread)
 
 
 def _caustics(dl, x, y, w, h, col, now, lines=26):
@@ -330,9 +290,33 @@ def background(dl, x, y, w, h, t, now):
     return True
 
 
+def tabs(dl, x, y, w, h, t, rects, index, hots):
+    """Glass tabs: the selected one is a lit pill, the rest are water."""
+    if not rects:
+        return False
+    for i, (tx, tw) in enumerate(rects):
+        on = i == index
+        r = (h - 8) * 0.5
+        ty, th = y + 4, h - 8
+        if on:
+            paint.grad_rect(dl, tx, ty, tw, th,
+                            theme_mod.lerp(t.accent, GLASS, 0.40),
+                            theme_mod.lerp(t.accent, SKY_DEEP, 0.25), r)
+            paint.gloss(dl, tx, ty, tw, th, r, GLASS, 1.0, 0.52)
+            dl.add_rect(ImVec2(tx, ty), ImVec2(tx + tw, ty + th),
+                        theme_mod.u32(GLASS, 0.85), r, 1.3)
+        elif hots[i] > 0.01:
+            paint.grad_rect(dl, tx, ty, tw, th,
+                            theme_mod.with_alpha(GLASS, 0.55 * hots[i]),
+                            theme_mod.with_alpha(GLASS, 0.18 * hots[i]), r)
+            dl.add_rect(ImVec2(tx, ty), ImVec2(tx + tw, ty + th),
+                        theme_mod.u32(GLASS, 0.5 * hots[i]), r, 1.0)
+    return True
+
+
 SKIN = skins.Skin(
     name="frutiger-aero",
-    plate=plate, frame=frame, hover_aura=hover_aura, press=press,
+    plate=plate, frame=frame, hover_aura=hover_aura, press=press, tabs=tabs,
     spinner=spinner, background=background,
     press_depth=3.4,          # a squishy compression, not a click
     extras={"sky": SKY, "grass": GRASS, "sun": SUN, "glass": GLASS},

@@ -403,12 +403,12 @@ class Demo:
         imgui.text_colored(t.text_mute, cur.blurb)
 
         imgui.dummy(ImVec2(0, 8))
-        imgui.text_colored(t.warn,
-                           "Layout and typeface are the other half, and this "
-                           "window cannot show them: the chrome here is the "
-                           "demo's own, and the font atlas is built once at "
-                           "startup. See examples/watchtower.py --profile "
-                           + self.profile)
+        imgui.text_colored(t.text_mute,
+                           "Palette, shape, density, motion and typeface all "
+                           "change here - the faces reload at the next frame. "
+                           "Layout is the one part this window cannot show, "
+                           "because the chrome is the demo's own: see "
+                           "examples/watchtower.py --profile " + self.profile)
 
         imgui.dummy(ImVec2(0, 10))
         widgets.section(f"{self.profile}: this is what changed")

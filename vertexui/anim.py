@@ -53,6 +53,16 @@ def to(key: str, target: float, speed: float = 14.0) -> float:
     return cur
 
 
+def peek(key: str, default: float = 0.0) -> float:
+    """Read a stored value without advancing it.
+
+    `to()` eases on every call, so a widget that wants to *look at* an
+    existing value - to hand a set of hover amounts to a skin, say -
+    cannot use it without stepping the animation twice a frame.
+    """
+    return _values.get(key, default)
+
+
 def mark_busy():
     """Declare motion that `to()` cannot see - anything driven by the clock
     rather than by a value approaching a target, such as a pulse."""

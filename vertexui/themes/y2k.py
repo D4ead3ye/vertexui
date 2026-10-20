@@ -23,7 +23,7 @@ import math
 
 from imgui_bundle import ImVec2, imgui
 
-from .. import layouts, profiles, skins
+from .. import layouts, paint, profiles, skins
 from .. import theme as theme_mod
 from ..theme import Theme, rgb
 
@@ -55,58 +55,22 @@ CHAMFER = 7.0
 # --- primitives --------------------------------------------------------
 
 def _chamfer(x, y, w, h, c=CHAMFER):
-    """A rectangle with the top-right and bottom-left corners cut.
-
-    Two corners rather than four: cutting all of them reads as a plaque,
-    where an asymmetric cut reads as a machined panel, which is the
-    technical-armour half of this brief.
-    """
-    c = max(2.0, min(c, min(w, h) * 0.4))
-    return [ImVec2(x, y), ImVec2(x + w - c, y), ImVec2(x + w, y + c),
-            ImVec2(x + w, y + h), ImVec2(x + c, y + h), ImVec2(x, y + h - c)]
+    """Two corners cut, from the shared helper."""
+    return paint.chamfered(x, y, w, h, c)
 
 
 def _bevel(dl, x, y, w, h, t, out=True, depth=2.0):
-    """The inset/outset 3D border, drawn as two L-shaped highlights.
-
-    Light from the top-left: an outset edge is lit on the top and left and
-    shaded on the bottom and right, and an inset one is exactly that
-    reversed. That single rule is the whole of 1990s interface depth.
-    """
-    hi = theme_mod.u32(CHROME_HI, 0.85 if out else 0.30)
-    lo = theme_mod.u32(VOID, 0.85 if out else 0.55)
-    a, b = (hi, lo) if out else (lo, hi)
-    for i in range(int(depth)):
-        dl.add_line(ImVec2(x + i, y + i), ImVec2(x + w - i, y + i), a, 1.0)
-        dl.add_line(ImVec2(x + i, y + i), ImVec2(x + i, y + h - i), a, 1.0)
-        dl.add_line(ImVec2(x + i, y + h - i), ImVec2(x + w - i, y + h - i), b, 1.0)
-        dl.add_line(ImVec2(x + w - i, y + i), ImVec2(x + w - i, y + h - i), b, 1.0)
+    paint.bevel(dl, x, y, w, h,
+                theme_mod.u32(CHROME_HI, 0.85 if out else 0.30),
+                theme_mod.u32(VOID, 0.85 if out else 0.55), out, depth)
 
 
 def _brushed(dl, x, y, w, h, top, bottom):
-    """A vertical metal gradient, by re-shading the rect's own vertices."""
-    i0 = dl.vtx_buffer.size()
-    dl.add_rect_filled(ImVec2(x, y), ImVec2(x + w, y + h),
-                       theme_mod.u32(top), 0.0)
-    i1 = dl.vtx_buffer.size()
-    if i1 > i0:
-        imgui.internal.shade_verts_linear_color_gradient_keep_alpha(
-            dl, i0, i1, ImVec2(x, y), ImVec2(x, y + h),
-            theme_mod.u32(top), theme_mod.u32(bottom))
+    paint.grad_rect(dl, x, y, w, h, top, bottom, 0.0)
 
 
 def _dots(dl, x, y, w, h, col, step=8.0):
-    """Dot-matrix ground. Clipped and stepped rather than per-pixel, so a
-    full window costs a few hundred one-pixel rects and not a texture."""
-    dl.push_clip_rect(ImVec2(x, y), ImVec2(x + w, y + h), True)
-    gy = y - (y % step)
-    while gy < y + h:
-        gx = x - (x % step)
-        while gx < x + w:
-            dl.add_rect_filled(ImVec2(gx, gy), ImVec2(gx + 1.0, gy + 1.0), col)
-            gx += step
-        gy += step
-    dl.pop_clip_rect()
+    paint.dots(dl, x, y, w, h, col, step)
 
 
 # --- painters ----------------------------------------------------------
@@ -322,20 +286,40 @@ def background(dl, x, y, w, h, t, now):
                 theme_mod.u32(CYAN, 0.30), 1.0)
 
     # CRT scanlines over everything, and one bright roll bar drifting
-    gy = y
-    while gy < y + h:
-        dl.add_rect_filled(ImVec2(x, gy), ImVec2(x + w, gy + 1.0),
-                           theme_mod.u32(VOID, 0.22))
-        gy += 3.0
+    paint.scanlines(dl, x, y, w, h, theme_mod.with_alpha(VOID, 0.22), 3.0)
     roll = (now * 90.0) % (h + 160.0) - 80.0
     dl.add_rect_filled(ImVec2(x, y + roll), ImVec2(x + w, y + roll + 48.0),
                        theme_mod.u32(CHROME_HI, 0.022))
     return True
 
 
+def tabs(dl, x, y, w, h, t, rects, index, hots):
+    """A row of chrome tabs, the selected one standing proud."""
+    if not rects:
+        return False
+    dl.add_rect_filled(ImVec2(x - 6, y + h - 2), ImVec2(x + w + 6, y + h),
+                       theme_mod.u32(CHROME_LO, 0.9))
+    for i, (tx, tw) in enumerate(rects):
+        on = i == index
+        top = CHROME if on else rgb("#2a2f3a")
+        bot = CHROME_LO if on else rgb("#161a22")
+        if hots[i] > 0.01 and not on:
+            top = theme_mod.lerp(top, CHROME, 0.35 * hots[i])
+        body = paint.chamfered(tx, y + (0 if on else 3), tw,
+                               h - (2 if on else 5), 6.0)
+        paint.grad_poly(dl, body, top, bot)
+        dl.add_polyline(body + [body[0]], theme_mod.u32(VOID, 0.8), 1.0, 0)
+        _bevel(dl, tx, y + (0 if on else 3), tw, h - (2 if on else 5), t,
+               out=True, depth=1)
+        if on:
+            dl.add_rect_filled(ImVec2(tx + 4, y + 2), ImVec2(tx + tw - 4, y + 4),
+                               theme_mod.u32(PINK, 0.9))
+    return True
+
+
 SKIN = skins.Skin(
     name="y2k-cyber",
-    plate=plate, head=head, frame=frame, hover_aura=hover_aura,
+    plate=plate, head=head, frame=frame, hover_aura=hover_aura, tabs=tabs,
     spinner=spinner, background=background,
     press_depth=3.0,
     press_snap=True,          # 1999 buttons do not ease

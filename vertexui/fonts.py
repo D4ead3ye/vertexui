@@ -46,6 +46,12 @@ UI_FACES = {
     "Tahoma": (("tahoma.ttf",), ("tahomabd.ttf",)),
     "Verdana": (("verdana.ttf",), ("verdanab.ttf",)),
     "Arial": (("arial.ttf",), ("arialbd.ttf",)),
+    # Serifs, for themes where the interface is meant to read as printed
+    # matter rather than as software.
+    "Georgia": (("georgia.ttf",), ("georgiab.ttf",)),
+    "Cambria": (("cambria.ttc", "cambriab.ttf"), ("cambriab.ttf",)),
+    "Constantia": (("constan.ttf",), ("constanb.ttf",)),
+    "Palatino": (("pala.ttf",), ("palab.ttf",)),
 }
 
 # The readouts and micro-labels get their own face: (candidates, scale).
@@ -58,6 +64,9 @@ DISPLAY_FACES = {
     "Bahnschrift": (("bahnschrift.ttf",), 0.88),
     "Cascadia Mono": (("CascadiaMono.ttf", "consola.ttf"), 0.92),
     "Segoe UI Semibold": (("seguisb.ttf", "segoeuib.ttf"), 1.0),
+    "Palatino": (("palab.ttf", "pala.ttf"), 0.96),
+    "Georgia": (("georgiab.ttf", "georgia.ttf"), 0.96),
+    "Impact": (("impact.ttf",), 0.92),
     "Match interface": (None, 1.0),
 }
 

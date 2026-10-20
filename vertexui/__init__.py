@@ -16,6 +16,8 @@ Each piece is usable on its own:
     notices   note, banner, empty state, and an in-window message tray
     fmt       durations, sizes, counts, and text that fits its box
     i18n      strings in more than one language, with a sane fallback
+    skins     painter slots, for a theme that needs more than a palette
+    themes    bundled themes - a profile plus its own drawing
     compose   slots, modules, pages, hooks and a connector bus
     layouts   six chrome shapes: tabbed, rail, dense, stage, hud, split
     profiles  whole identities - palette, shape, type, density, motion
@@ -52,16 +54,17 @@ them - numpy and PyOpenGL are only touched if you touch those modules.
 import importlib
 
 from . import (anim, cards, compose, dialogs, fmt, fonts, i18n, icons,
-               inputs, layouts, logview, notices, profiles, settings, sound,
-               table, theme, widgets)
+               inputs, layouts, logview, notices, profiles, settings, skins,
+               sound, table, theme, themes, widgets)
 
 __all__ = ["anim", "backdrop", "cards", "compose", "dialogs", "effects",
            "fmt", "fonts", "graphics", "i18n", "icons", "inputs", "layouts",
-           "logview", "notices", "profiles", "settings", "sound", "table",
-           "theme", "toasts", "widgets", "install", "end_frame",
+           "logview", "notices", "profiles", "settings", "skins", "sound",
+           "table", "theme", "themes", "toasts", "widgets", "install",
+           "end_frame",
            "App", "Module"]
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 _LAZY = ("toasts", "effects", "backdrop", "graphics")
 

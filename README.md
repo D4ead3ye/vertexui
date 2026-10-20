@@ -30,6 +30,8 @@ generated or drawn, so vendoring the folder is the whole install.
 | `compose` | slots, modules, pages, hooks and a connector bus |
 | `layouts` | six chrome shapes: tabbed, rail, dense, stage, hud, split |
 | `profiles` | whole identities — palette, shape, type, density, motion |
+| `skins` | painter slots, for a theme that needs more than a palette |
+| `themes` | bundled themes — a profile plus its own drawing |
 | `logview` | a log pane that glides instead of yanking to the bottom |
 | `settings` | a ready-made settings panel, and the object behind it |
 | `toasts` | click-through notifications drawn *over another application* |
@@ -55,13 +57,14 @@ A profile is all of that at once, named after the kind of work it is for.
 
 ![Seven profiles](docs/profiles.png)
 
-**That image is one application.** Same four modules, same data, seven
+**That image is one application.** Same four modules, same data, eight
 profiles — and it is in the repo as `tools/matrix.py` precisely so the
 claim can be checked rather than believed.
 
 | profile | layout | for |
 |---|---|---|
 | `NOIR` | tabbed | the toolkit's original look, kept so nothing regresses |
+| `SBR` | tabbed | Araki western — parchment, brass, notched corners, golden ratio |
 | `INSTRUMENT` | dense | telemetry and profiling — amber on slate, square corners, 0.82 density |
 | `CONSOLE` | dense | logs and command output — phosphor, mono throughout, zero radius |
 | `MINIMAL` | stage | one job, one number — no navigation, 14px corners, slow and quiet |
@@ -282,6 +285,66 @@ Deliberately small. A missing key returns the key, because a panel reading
 `orders.due` is a bug you can see and an empty label is one you find from a
 screenshot three weeks later. `i18n.missing()` lists everything asked for
 and not found, so the translation to-do list writes itself.
+
+## Themes
+
+A profile is configuration — colours, shape, type, density, which layout.
+Some identities need *drawing*: a card that is parchment in an engraved
+brass frame with notched corners and a cross-hatched ink shadow is not a
+palette, and no amount of tokens gets you there.
+
+So `skins` is a small set of optional painters a profile can carry:
+
+```python
+Skin(plate=..., frame=..., hover_aura=..., press=..., spinner=...,
+     background=..., press_depth=2.4)
+```
+
+Where a painter is set the widget calls it; where it is not, nothing
+changes and the widget draws as it always did. Every painter may return
+`False` to mean *not mine, draw it normally* — which is what lets a skin
+restyle only the `raised` card and leave the other three stock. No
+subclassing, and a theme that only wants a palette never touches it.
+
+### Steel Ball Run
+
+![Steel Ball Run](docs/sbr.png)
+
+Araki western: desert parchment ground, pages held in engraved brass
+frames with notched corners, cross-hatched ink instead of blurred shadow,
+serif throughout, Araki magenta with turquoise as its foil.
+
+![The same code on two profiles](docs/sbr_contrast.png)
+
+**Same application, same code.** Everything on the left comes from the
+profile and its skin — which is the claim the whole `skins` module exists
+to make good on.
+
+φ is load-bearing rather than decorative: the notch size, the frame inset,
+the card header, the aura radii, the motion rate and the background spiral
+are all steps of it.
+
+```python
+from vertexui import themes
+app = compose.App(profile=themes.SBR)
+```
+
+![Riders](docs/sbr_riders.png)
+
+The spinner is Gyro's steel ball — a lit sphere turning about a vertical
+axis, where each etched groove is a meridian whose half-width is the
+cosine of how far round it has come. That is what sells the rotation with
+no 3D involved, and the poles stay put, which is where the green accents
+go.
+
+Two things worth knowing if you write one of these:
+
+* **a golden spiral grows by φ every quarter turn**, so over three turns
+  that is φ¹², and the only sane way to draw one to a given size is from
+  the outside inward. The first attempt overflowed a float.
+* **alphas tuned on a dark ground read heavy on a pale one.** Area fills
+  drop from 0.16 to 0.10 when `theme.is_light` — the same value that looks
+  like a tint on black looks like a wash on parchment.
 
 ## Minimal app
 
@@ -812,6 +875,7 @@ that a thing runs and two opposed ones show that it is actually modular:
 | `examples/watchtower.py` | **identical modules under every profile** — `--profile paper`, `--hud` |
 | `examples/ledger.py` | 4,000-row table, search, chips, dialogs, banner, split aside |
 | `examples/intake.py` | the opposite — one form, one screen, zoomed up |
+| `examples/steelball.py` | a themed race board; `--profile noir` strips it back to stock |
 
 ![Ledger and intake](docs/ledger.png)
 

@@ -91,6 +91,21 @@ identical before anyone noticed. The icon set went from 16 to 46 because
 three projects shipped overlapping packs. `icons.register()` exists so the
 next one extends the set rather than forking it.
 
+## 6. A theme that needs drawing uses skins, never a fork
+
+`profiles` is configuration. When an identity needs its own card, button,
+spinner or window ground, add a `Skin` of painters and hang it on the
+profile - do not copy a widget to change how it looks.
+
+Every painter is optional and may return False to mean "not mine", so a
+skin restyles what it cares about and inherits the rest. A profile with
+`skin=None` puts the stock drawing back, which is what makes switching
+themes at runtime safe.
+
+Themes live in `vertexui/themes/` and register themselves into
+`profiles.ALL`, so `tools/matrix.py` covers them and the settings panel
+lists them without anything else changing.
+
 ## House conventions
 
 * Colour names are semantic - `accent`, `surface`, `danger`. Never `red`.
@@ -108,6 +123,10 @@ next one extends the set rather than forking it.
   them, and colours through `theme.u32()`.
 * This binding has no `get_window_content_region_max`; derive a full-width
   span from `get_window_pos` + `get_window_size` less the scrollbar.
+* Alpha tuned on a dark ground reads heavy on a pale one. Branch on
+  `theme.is_light` for washes and fills rather than picking one value.
+* A golden spiral grows by phi every quarter turn, so draw it from the
+  outside inward or it overflows a float before the third turn.
 * A card owns its own `ImDrawListSplitter`, which is what makes nesting
   legal. Do not go back to `draw_list.channels_split`.
 

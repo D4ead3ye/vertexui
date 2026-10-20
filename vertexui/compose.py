@@ -226,6 +226,7 @@ class App:
             fn(self)
         for m in self.modules:
             m.frame(self)
+        paint_background()
         self.profile.layout.draw(self)
         for fn in self.hooks["frame_end"]:
             fn(self)
@@ -255,6 +256,28 @@ class App:
                 faces=self.profile.build_faces())
         hello_imgui.run(params)
         self.teardown()
+
+
+def paint_background():
+    """Let the active skin paint the window ground.
+
+    Before any content, like `backdrop.draw()` - and compatible with it,
+    since a skin that wants a shader behind its texture simply does not
+    paint an opaque ground.
+    """
+    import time as _time
+
+    from imgui_bundle import ImVec2, imgui
+
+    from . import skins
+    from . import theme as theme_mod
+    fn = skins.painter("background")
+    if fn is None:
+        return False
+    io = imgui.get_io()
+    fn(imgui.get_window_draw_list(), 0.0, 0.0,
+       io.display_size.x, io.display_size.y, theme_mod.current(), _time.time())
+    return True
 
 
 def module(name=None, **slots):

@@ -126,7 +126,8 @@ def sparkline(values, width=0.0, height=34.0, colour=None, fill=True,
         ys = o.y + height - 2.0 - (v - a) / (b - a) * (height - 4.0)
         pts = [ImVec2(float(x), float(y)) for x, y in zip(xs, ys)]
         if fill:
-            _under(dl, pts, o.y + height, _col(c, 0.16))
+            _under(dl, pts, o.y + height,
+                   _col(c, 0.10 if theme_mod.is_light(t) else 0.16))
         dl.add_polyline(pts, _col(c, 0.95), thickness, 0)
         if head:
             dl.add_circle_filled(pts[-1], 2.6, _col(c, 1.0))
@@ -196,7 +197,8 @@ def plot(series, width=0.0, height=120.0, lo=None, hi=None, grid=4,
         ys = o.y + height - 6.0 - (v - a) / (b - a) * (height - 12.0)
         pts = [ImVec2(float(x), float(y)) for x, y in zip(xs, ys)]
         if fill:
-            _under(dl, pts, o.y + height - 4, _col(cols[i], 0.13))
+            _under(dl, pts, o.y + height - 4,
+                   _col(cols[i], 0.08 if theme_mod.is_light(t) else 0.13))
         dl.add_polyline(pts, _col(cols[i], 0.95), 1.7, 0)
         dl.add_circle_filled(pts[-1], 2.6, _col(cols[i]))
         stored.append((pts, v))

@@ -31,7 +31,7 @@ coordinates and are just as public.
 
 from imgui_bundle import ImVec2, ImVec4, imgui
 
-from . import fonts, icons
+from . import fonts, icons, skins
 from . import theme as theme_mod
 from .widgets import caps, caps_width
 
@@ -101,6 +101,11 @@ def plate(dl, x, y, w, h, t=None, edge=None, style=None, shadow=None):
     t = t or theme_mod.current()
     st = style if style in STYLES else _style
     sh = _shadow if shadow is None else bool(shadow)
+    # A skin gets first refusal. Returning False means "not mine", which
+    # is how a theme restyles one card style and leaves the rest stock.
+    painter = skins.painter("plate")
+    if painter is not None and painter(dl, x, y, w, h, t, edge, st, sh):
+        return
     r = t.rounding
     p0, p1 = ImVec2(x, y), ImVec2(x + w, y + h)
 

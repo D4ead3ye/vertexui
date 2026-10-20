@@ -13,9 +13,11 @@ so a project sets those once and never passes them again:
         ...
 """
 
+import math
+
 from imgui_bundle import ImVec2, ImVec4, imgui
 
-from . import anim, fonts, icons, sound
+from . import anim, fonts, icons, skins, sound
 from . import theme as theme_mod
 
 _hover_was = {}
@@ -72,11 +74,20 @@ def button(label, width=0.0, height=36.0, primary=False, enabled=True,
         # as "disabled" on a dark panel and as a dirty smudge on a pale one.
         fill = theme_mod.with_alpha(theme_mod.sink(fill, 0.55, t), 0.75)
 
-    inset = 1.0 * press           # sinks rather than jumping to a third colour
+    inset = 1.0 * press * skins.press_depth()   # sinks rather than jumping
     p0 = ImVec2(pos.x, pos.y + inset)
     p1 = ImVec2(pos.x + width, pos.y + height - inset)
 
-    dl.add_rect_filled(p0, p1, imgui.get_color_u32(fill), t.rounding)
+    skin_plate = skins.painter("frame")
+    if skin_plate is None or not skin_plate(dl, p0.x, p0.y, p1.x - p0.x,
+                                            p1.y - p0.y, t,
+                                            "button-primary" if primary
+                                            else "button"):
+        dl.add_rect_filled(p0, p1, imgui.get_color_u32(fill), t.rounding)
+    aura = skins.painter("hover_aura")
+    if aura is not None and hot > 0.01:
+        aura(dl, p0.x, p0.y, p1.x, p1.y, t, hot,
+             "primary" if primary else "button")
     if hot > 0.01:
         dl.add_rect(p0, p1, imgui.get_color_u32(
             theme_mod.with_alpha(t.accent, 0.55 * hot)), t.rounding, 1.0)
@@ -547,3 +558,33 @@ def icon_button(name, size=30.0, tooltip=None, key=None) -> bool:
     if clicked:
         sound.play("click")
     return clicked
+
+
+def spinner(size=26.0, key="spin", label=None, colour=None):
+    """A busy indicator.
+
+    The stock one is a sweeping arc. A skin that supplies `spinner` draws
+    its own instead - which is where a theme's character tends to show
+    most, because this is the one element a user stares at.
+    """
+    import time as _time
+    t = theme_mod.current()
+    dl = imgui.get_window_draw_list()
+    r = theme_mod.px(size, t) * 0.5
+    o = imgui.get_cursor_screen_pos()
+    cx, cy = o.x + r, o.y + r
+    phase = _time.time()
+    anim.mark_busy()
+
+    custom = skins.painter("spinner")
+    if custom is None or not custom(dl, cx, cy, r, t, phase):
+        a0 = (phase * 2.6) % (math.tau)
+        dl.path_arc_to(ImVec2(cx, cy), r * 0.82, a0, a0 + 2.1, 24)
+        dl.path_stroke(theme_mod.u32(colour or t.accent, 0.95),
+                       max(1.8, r * 0.22), 0)
+        dl.add_circle(ImVec2(cx, cy), r * 0.82,
+                      theme_mod.u32(t.border, 0.5), 32, max(1.2, r * 0.12))
+    imgui.dummy(ImVec2(r * 2, r * 2))
+    if label:
+        imgui.same_line(0, 9)
+        imgui.text_colored(t.text_dim, label)

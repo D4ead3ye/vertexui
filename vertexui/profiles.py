@@ -36,7 +36,7 @@ is nothing here a project cannot replace.
 
 from dataclasses import dataclass, field, replace
 
-from . import anim, cards, fonts, layouts, sound
+from . import anim, cards, fonts, layouts, skins, sound
 from . import theme as theme_mod
 from .theme import Theme, rgb
 
@@ -120,6 +120,10 @@ class Profile:
     effect: str = "none"
     effect_intensity: float = 1.0
 
+    # Drawing overrides, for a theme that needs more than a palette.
+    # None is normal and clears whatever the last profile installed.
+    skin: object = None
+
     blurb: str = ""
 
     # -- derive --------------------------------------------------------
@@ -153,6 +157,7 @@ class Profile:
             pass                       # no context yet - install() styles it
         cards.set_style(self.card_style, self.card_shadow)
         anim.set_rate(self.motion)
+        skins.use(self.skin)        # None puts the stock drawing back
         if self.sound_set:
             # Same courtesy as Settings.apply: never over a set the
             # application built and installed itself.

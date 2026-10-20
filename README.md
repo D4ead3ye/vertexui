@@ -57,7 +57,7 @@ A profile is all of that at once, named after the kind of work it is for.
 
 ![Seven profiles](docs/profiles.png)
 
-**That image is one application.** Same four modules, same data, eight
+**That image is one application.** Same four modules, same data, nine
 profiles — and it is in the repo as `tools/matrix.py` precisely so the
 claim can be checked rather than believed.
 
@@ -65,6 +65,7 @@ claim can be checked rather than believed.
 |---|---|---|
 | `NOIR` | tabbed | the toolkit's original look, kept so nothing regresses |
 | `SBR` | tabbed | Araki western — parchment, brass, notched corners, golden ratio |
+| `Y2K` | tabbed | Win98 chrome, neon on pitch black, a CD-ROM spinner |
 | `INSTRUMENT` | dense | telemetry and profiling — amber on slate, square corners, 0.82 density |
 | `CONSOLE` | dense | logs and command output — phosphor, mono throughout, zero radius |
 | `MINIMAL` | stage | one job, one number — no navigation, 14px corners, slow and quiet |
@@ -296,8 +297,8 @@ palette, and no amount of tokens gets you there.
 So `skins` is a small set of optional painters a profile can carry:
 
 ```python
-Skin(plate=..., frame=..., hover_aura=..., press=..., spinner=...,
-     background=..., press_depth=2.4)
+Skin(plate=..., head=..., frame=..., hover_aura=..., press=...,
+     spinner=..., background=..., press_depth=2.4, press_snap=False)
 ```
 
 Where a painter is set the widget calls it; where it is not, nothing
@@ -345,6 +346,38 @@ Two things worth knowing if you write one of these:
 * **alphas tuned on a dark ground read heavy on a pale one.** Area fills
   drop from 0.16 to 0.10 when `theme.is_light` — the same value that looks
   like a tint on black looks like a wash on parchment.
+
+### Y2K Cyber
+
+![Y2K Cyber](docs/y2k.png)
+
+Pitch black, liquid chrome, hot pink and electric cyan over deep purple.
+Zero radius anywhere, chamfered corners, hard offset shadows with no blur
+at all, and the inset/outset bevels every operating system drew between
+1995 and 2001.
+
+Cards are **floating windows** — a gradient title bar carrying the module
+name in monospace with minimise and close squares at its right, a dot-grid
+ground, a chrome frame. That needed a new painter: `head`, because the
+stock card header is a label and a rule and no amount of configuration
+turns one into a title bar.
+
+![Network page](docs/y2k_network.png)
+
+Buttons are metal blocks that drop **the instant** you touch them —
+`press_snap=True`, a new skin flag, because this look is *about* not being
+smooth and an eased press makes it read as a modern button in costume.
+Hover is a CRT glitch: chromatic pink/cyan edge separation and a torn
+scanline sliding down the control, driven by the clock rather than by the
+hover amount, since a glitch that pulses smoothly is not a glitch.
+
+![The same code on two profiles](docs/y2k_contrast.png)
+
+The spinner is a CD-ROM. The holographic sheen is the part worth getting
+right: `|cos(angle - spin)|` is **already** two lobes 180° apart, which is
+what a disc shows. Adding a second term looked like more holograph and was
+really four wide lobes — a colour wheel. One term at a high exponent gives
+two narrow arcs sweeping a dark silver disc, which is what a CD does.
 
 ## Minimal app
 
@@ -876,6 +909,7 @@ that a thing runs and two opposed ones show that it is actually modular:
 | `examples/ledger.py` | 4,000-row table, search, chips, dialogs, banner, split aside |
 | `examples/intake.py` | the opposite — one form, one screen, zoomed up |
 | `examples/steelball.py` | a themed race board; `--profile noir` strips it back to stock |
+| `examples/cyberdeck.py` | a Y2K system monitor built out of floating windows |
 
 ![Ledger and intake](docs/ledger.png)
 

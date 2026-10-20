@@ -64,7 +64,8 @@ def button(label, width=0.0, height=36.0, primary=False, enabled=True,
 
     hover_tick(f"btn:{key}", hovered)
     hot = anim.to(f"btn:{key}", 1.0 if hovered else 0.0, 16.0)
-    press = anim.to(f"btnp:{key}", 1.0 if held else 0.0, 26.0)
+    press = ((1.0 if held else 0.0) if skins.press_snap()
+             else anim.to(f"btnp:{key}", 1.0 if held else 0.0, 26.0))
 
     base = t.accent_dim if primary else t.surface
     top = t.accent if primary else t.surface_hover

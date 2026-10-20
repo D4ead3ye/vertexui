@@ -161,6 +161,11 @@ def card_head(dl, x, y, w, t=None, icon=None, title="", right=None,
     Returns the y the content starts at.
     """
     t = t or theme_mod.current()
+    custom = skins.painter("head")
+    if custom is not None:
+        got = custom(dl, x, y, w, t, icon, title, right, right_col, dot)
+        if got is not None:
+            return got
     cy = y + 13.0
     if icon:
         icons.draw(icon, dl, x + 14, cy, 6.5,

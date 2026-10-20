@@ -20,7 +20,8 @@ the `raised` card style and leave the other three alone.
 
 from dataclasses import dataclass, field
 
-__all__ = ["Skin", "use", "current", "clear", "painter", "press_depth"]
+__all__ = ["Skin", "use", "current", "clear", "painter",
+           "press_depth", "press_snap", "extra"]
 
 
 @dataclass
@@ -29,6 +30,11 @@ class Skin:
 
     plate(dl, x, y, w, h, t, edge, style, shadow) -> bool
         The background of a card. Return True if you drew it.
+    head(dl, x, y, w, t, icon, title, right, right_col, dot) -> float | None
+        A card's header. Return the y content should start at, or None to
+        let the stock header draw. A skin that wants a title *bar* rather
+        than a label and a rule needs this - the stock header cannot be
+        talked into one by configuration.
     frame(dl, x, y, w, h, t, rect_kind) -> bool
         A generic framed surface - inputs, wells, table grounds.
     hover_aura(dl, x0, y0, x1, y1, t, amount, kind)
@@ -45,6 +51,7 @@ class Skin:
 
     name: str = "plain"
     plate: object = None
+    head: object = None
     frame: object = None
     hover_aura: object = None
     press: object = None
@@ -52,6 +59,9 @@ class Skin:
     background: object = None
     corner: object = None
     press_depth: float = 1.0
+    #: Skip the press easing entirely. Some looks are *about* not being
+    #: smooth - a 1999 button drops the instant you touch it.
+    press_snap: bool = False
     extras: dict = field(default_factory=dict)
 
 
@@ -90,3 +100,14 @@ def painter(name):
 def press_depth():
     s = _active
     return s.press_depth if s is not None else 1.0
+
+
+def press_snap():
+    s = _active
+    return bool(s.press_snap) if s is not None else False
+
+
+def extra(key, default=None):
+    """A skin's own setting, for anything too specific to be a field."""
+    s = _active
+    return s.extras.get(key, default) if s is not None else default

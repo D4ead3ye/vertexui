@@ -106,6 +106,10 @@ Themes live in `vertexui/themes/` and register themselves into
 `profiles.ALL`, so `tools/matrix.py` covers them and the settings panel
 lists them without anything else changing.
 
+When a theme needs something no painter covers, add the painter to `Skin`
+rather than special-casing the theme - `head` and `press_snap` both came
+from Y2K and both are now available to every theme.
+
 ## House conventions
 
 * Colour names are semantic - `accent`, `surface`, `danger`. Never `red`.

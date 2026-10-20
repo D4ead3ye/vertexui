@@ -17,7 +17,7 @@ cosmetic one.
 
 from imgui_bundle import ImVec2, imgui
 
-from . import anim, fonts, icons
+from . import anim, fonts, icons, skins
 from . import theme as theme_mod
 
 __all__ = ["field_label", "text_input", "search_input", "switch",
@@ -63,17 +63,32 @@ def text_input(key, value, hint="", width=0.0, height=0.0, password=False,
         max(60.0, imgui.get_content_region_avail().x)
     imgui.push_id(key)
     imgui.push_item_width(w)
+    # A skin may own the field's ground - an inset bevel, a well, a frame.
+    # When it does, ImGui's own fill is made transparent so the two do not
+    # stack, and the skin draws before the text goes down.
+    skin_frame = skins.painter("frame")
+    o = imgui.get_cursor_screen_pos()
+    fh = imgui.get_frame_height() if height <= 0 else theme_mod.px(height, t)
+    owned = skin_frame is not None and skin_frame(
+        imgui.get_window_draw_list(), o.x, o.y, w, fh, t, "input")
     imgui.push_style_var(imgui.StyleVar_.frame_rounding, t.rounding)
+    clear = theme_mod.with_alpha(t.surface, 0.0)
     imgui.push_style_color(imgui.Col_.frame_bg,
+                           theme_mod.u32(clear) if owned else
                            theme_mod.u32(theme_mod.sink(t.surface, 0.45, t)))
     imgui.push_style_color(imgui.Col_.frame_bg_hovered,
-                           theme_mod.u32(t.surface_hover))
+                           theme_mod.u32(clear) if owned
+                           else theme_mod.u32(t.surface_hover))
     imgui.push_style_color(imgui.Col_.frame_bg_active,
-                           theme_mod.u32(t.surface_hover))
+                           theme_mod.u32(clear) if owned
+                           else theme_mod.u32(t.surface_hover))
     if not enabled:
         flags |= imgui.InputTextFlags_.read_only
     if password:
         flags |= imgui.InputTextFlags_.password
+    mono = fonts.use("mono") if skins.extra("mono_inputs") else None
+    if mono is not None:
+        mono.__enter__()
     if height > 0:
         changed, value = imgui.input_text_multiline(
             "##f", value, ImVec2(w, theme_mod.px(height, t)), flags)
@@ -82,10 +97,19 @@ def text_input(key, value, hint="", width=0.0, height=0.0, password=False,
     else:
         changed, value = imgui.input_text("##f", value, flags)
     active = imgui.is_item_active()
+    if mono is not None:
+        mono.__exit__()
     imgui.pop_style_color(3)
     imgui.pop_style_var()
     imgui.pop_item_width()
-    _focus_ring(t, active)
+    if not owned:
+        _focus_ring(t, active)
+    elif active:
+        aura = skins.painter("hover_aura")
+        if aura is not None:
+            a, b = imgui.get_item_rect_min(), imgui.get_item_rect_max()
+            aura(imgui.get_window_draw_list(), a.x, a.y, b.x, b.y, t, 1.0,
+                 "input")
     imgui.pop_id()
     return changed, value
 

@@ -412,6 +412,19 @@ class Demo:
 
         imgui.dummy(ImVec2(0, 10))
         widgets.section(f"{self.profile}: this is what changed")
+        imgui.begin_group()
+        if widgets.spinner(86, key="demo:spin", label=None):
+            self.notify("info", "spun up - it winds back down on its own")
+        imgui.end_group()
+        imgui.same_line(0, 14)
+        imgui.begin_group()
+        imgui.text_colored(t.text_dim, "Click the spinner.")
+        imgui.text_colored(t.text_mute,
+                           "Each theme does something of its own at speed: "
+                           "the ball throws impact lines, the disc smears "
+                           "into one rainbow ring, the bubble wobbles.")
+        imgui.end_group()
+        imgui.dummy(ImVec2(0, 8))
         half = (imgui.get_content_region_avail().x - 18) * 0.5
         with cards.card("sample card", icon="bolt", right=cur.layout.name,
                         width=half) as c:

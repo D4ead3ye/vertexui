@@ -114,7 +114,7 @@ class Deck(compose.Module):
         half = (avail - 18) * 0.5
         with cards.card("optical drive", right="CD-ROM", width=half) as c:
             if self.scanning:
-                widgets.spinner(58, label="READING DISC")
+                widgets.spinner(87, label="READING DISC", key="cd")
             else:
                 imgui.text_colored(t.text_mute, "tray open")
             imgui.dummy(ImVec2(0, 6))

@@ -137,6 +137,12 @@ is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
   `theme.is_light` for washes and fills rather than picking one value.
 * A golden spiral grows by phi every quarter turn, so draw it from the
   outside inward or it overflows a float before the third turn.
+* Anything animated at a variable rate integrates `dt * rate` into a
+  stored phase. Scaling the wall clock makes the image jump the moment
+  the rate changes.
+* A spinner painter draws within `widgets.SPINNER_BLEED` of the core
+  radius it is handed. Overflowing it is how the Frutiger bubble ended up
+  offset from its own ripples.
 * A draw list cannot blur what is behind it. Glassmorphism here means a
   background with no hard edges and translucent plates over it, which
   gets there by construction and costs nothing.

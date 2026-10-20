@@ -82,7 +82,7 @@ class Habitat(compose.Module):
                         right=TANKS[self.tank].upper(), right_col=t.accent,
                         edge=t.accent) as c:
             if self.sampling:
-                widgets.spinner(64, label="drawing sample")
+                widgets.spinner(84, label="drawing sample", key="sampler")
             else:
                 imgui.text_colored(t.text_mute, "sampler idle")
             imgui.same_line(0, 26)

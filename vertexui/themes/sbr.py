@@ -297,7 +297,7 @@ def hover_aura(dl, x0, y0, x1, y1, t, amount, kind):
             _menacing(dl, mx, my, s, theme_mod.u32(INK, fade))
 
 
-def spinner(dl, cx, cy, r, t, phase):
+def spinner(dl, cx, cy, r, t, phase, spin=1.0):
     """Gyro's steel ball. Green, because Gyro's are.
 
     It turns about a vertical axis, so the etched grooves are meridians:
@@ -305,20 +305,43 @@ def spinner(dl, cx, cy, r, t, phase):
     it has turned, which sells the rotation with no 3D at all. The poles
     stay put, which is where the brass caps live.
     """
-    spin = phase * 2.2
+    # `spin` is the rate; `heat` is how far past resting it is. Nothing
+    # below reads the clock directly - the phase already carries the rate,
+    # so the whole thing winds up and down together.
+    heat = max(0.0, min(1.0, (spin - 1.0) / 4.0))
+    turn = phase * 2.2
     pulse = 0.5 + 0.5 * math.sin(phase * 2.0 * INV)
 
     # the page reacting to it: focus lines, not a bloom
-    _focus_lines(dl, cx, cy, r * 1.30, r * (1.62 + 0.12 * pulse),
-                 theme_mod.u32(t.accent, 0.30), 22, 1.4, phase=-spin * 0.35)
+    # kept inside widgets.SPINNER_BLEED so the lines never reach a
+    # neighbour - they are decoration, not layout
+    _focus_lines(dl, cx, cy, r * (1.14 - 0.10 * heat),
+                 r * (1.34 + 0.10 * pulse),
+                 theme_mod.u32(t.accent, 0.30 + 0.45 * heat),
+                 22 + int(16 * heat), 1.4 + 1.0 * heat, phase=-turn * 0.35)
+    if heat > 0.02:
+        # afterimages: the ball smeared round its own axis, which is what
+        # a drawn frame does instead of a motion blur
+        for i in range(1, 4):
+            a = -turn * 0.12 * i
+            gx = cx + math.cos(a) * r * 0.10 * heat * i
+            gy = cy + math.sin(a) * r * 0.10 * heat * i
+            dl.add_circle_filled(ImVec2(gx, gy), r * (1.0 - 0.04 * i),
+                                 theme_mod.u32(GREEN_MID, 0.12 * heat))
+        # and the marks, because this is what they are for
+        for i in range(3):
+            k = ((phase * 0.5 + i * 0.33) % 1.0)
+            _menacing(dl, cx + r * (0.95 - i * 0.3), cy - r * (0.9 + k * 0.5),
+                      r * (0.26 + 0.06 * i),
+                      theme_mod.u32(INK, heat * (1.0 - k) * 0.7))
     dl.add_circle_filled(ImVec2(cx, cy), r * 1.22,
                          theme_mod.u32(TURQUOISE, 0.08 + 0.05 * (1 - pulse)))
 
     # a logarithmic trail of particles falling behind the spin
     for i in range(8):
-        a = -spin * 0.5 - i * 0.40
-        rad = r * (1.14 + i * 0.13)
-        fade = (1.0 - i / 8.0) * 0.5
+        a = -turn * 0.5 - i * 0.40
+        rad = r * (1.02 + i * 0.055)       # <= 1.41r
+        fade = (1.0 - i / 8.0) * (0.5 + 0.45 * heat)
         dl.add_circle_filled(
             ImVec2(cx + math.cos(a) * rad, cy + math.sin(a) * rad * 0.55),
             max(0.7, r * 0.085 * (1.0 - i / 10.0)),
@@ -345,7 +368,7 @@ def spinner(dl, cx, cy, r, t, phase):
 
     # etched grooves as meridians, squashed by their own rotation
     for g in range(5):
-        half = math.cos(spin + g * (math.pi / 5.0))
+        half = math.cos(turn + g * (math.pi / 5.0))
         ww = abs(half) * r * 0.94
         if ww < 0.8:
             continue

@@ -109,7 +109,7 @@ class Race(compose.Module):
             imgui.same_line(0, 18)
             imgui.begin_group()
             if self.live:
-                widgets.spinner(46, label="stage running")
+                widgets.spinner(69, label="stage running", key="race")
             else:
                 imgui.text_colored(t.text_mute, "stage held")
             imgui.dummy(ImVec2(0, 6))

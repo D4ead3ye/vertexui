@@ -74,6 +74,8 @@ class Settings:
     tag_column: bool = True
     log_speed: str = "calm"
 
+    spinner_speed: float = 1.0
+
     sounds: bool = True
     volume: float = 0.16
     sound_set: str = "soft taps"
@@ -139,6 +141,7 @@ class Settings:
             pass      # no ImGui context yet - install() will style it later
 
         cards.set_style(self.card_style, self.card_shadow)
+        widgets.SPINNER_SPEED = self.spinner_speed
         if fonts.available():
             fonts.request(self.build_faces())   # applied at the next frame
 
@@ -251,6 +254,10 @@ def panel(st: Settings, log: "logview.LogView" = None, extra=None,
                            170.0, "%.0f", "roundp")
         changed |= _slider(st, "border width", "border_width", 0.0, 3.0, 170.0,
                            "%.1f", "borderw")
+
+    if "shape" in show:
+        changed |= _slider(st, "spinner speed", "spinner_speed", 0.2, 3.0,
+                           170.0, "%.2fx", "spinspeed")
 
     if "cards" in show:
         widgets.section("cards", width)

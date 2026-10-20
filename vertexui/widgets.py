@@ -579,31 +579,122 @@ def icon_button(name, size=30.0, tooltip=None, key=None) -> bool:
     return clicked
 
 
-def spinner(size=26.0, key="spin", label=None, colour=None):
-    """A busy indicator.
+#: How far outside its core radius a spinner painter may draw. Auras,
+#: ripples, orbiting particles and trails are the whole point of these
+#: designs, so the widget reserves room for them rather than pretending
+#: the core is all there is.
+SPINNER_BLEED = 1.5
 
-    The stock one is a sweeping arc. A skin that supplies `spinner` draws
-    its own instead - which is where a theme's character tends to show
-    most, because this is the one element a user stares at.
+#: Multiplier every spinner starts at. An application that wants all of
+#: them calmer or busier sets this once.
+SPINNER_SPEED = 1.0
+
+_spin = {}
+
+
+def _spin_arity(fn):
+    """How many arguments a spinner painter takes.
+
+    Checked rather than assumed so a skin written against the six-argument
+    form keeps working after `spin` was added as a seventh.
+    """
+    cached = _spin.get(("arity", fn))
+    if cached is None:
+        import inspect
+        try:
+            cached = len(inspect.signature(fn).parameters)
+        except (TypeError, ValueError):
+            cached = 6
+        _spin[("arity", fn)] = cached
+    return cached
+
+
+def spin_boost(key="spin", amount=5.0):
+    """Spin a spinner up from code.
+
+    The click is the fidget; this is the same thing fired by an event -
+    a job starting, a disc being read, a sample drawn. It winds down on
+    its own, so there is nothing to clear afterwards.
+    """
+    st = _spin.setdefault(key, {"phase": 0.0, "boost": 0.0})
+    st["boost"] = max(st["boost"], float(amount))
+    return st["boost"]
+
+
+def spinner(size=26.0, key="spin", label=None, colour=None, speed=1.0,
+            fidget=True, boost=5.0, decay=1.7) -> bool:
+    """A busy indicator. Returns True on the frame it is clicked.
+
+    `size` is the box the widget occupies, and the painter is handed the
+    radius of the *core* - the ball, the disc, the bubble - which is
+    `SPINNER_BLEED` times smaller. Everything a painter draws has to fit
+    within that factor of the core, and in exchange it is centred and
+    nothing spills onto its neighbours. Getting this wrong is visible:
+    the first Frutiger bubble drew ripples out to 2.2 times its radius
+    inside a box that allowed 1.0, so the bubble sat high and left of the
+    rings it was supposed to be making.
+
+    With `fidget` on - the default - clicking it spins the thing up and
+    lets it wind back down. The painter is told the current rate, so each
+    theme can do something of its own at speed rather than merely turning
+    faster.
+
+    Rotation runs on an accumulated phase rather than on the wall clock,
+    which is the only way the rate can change without the image jumping:
+    scaling `time.time()` moves the angle discontinuously the moment the
+    multiplier does.
     """
     import time as _time
     t = theme_mod.current()
     dl = imgui.get_window_draw_list()
-    r = theme_mod.px(size, t) * 0.5
+    box = theme_mod.px(size, t)
+    half = box * 0.5
+    r = half / SPINNER_BLEED
     o = imgui.get_cursor_screen_pos()
-    cx, cy = o.x + r, o.y + r
-    phase = _time.time()
+    cx, cy = o.x + half, o.y + half
     anim.mark_busy()
 
+    st = _spin.setdefault(key, {"phase": _time.time() % 1000.0, "boost": 0.0})
+    dt = min(0.05, max(0.0001, imgui.get_io().delta_time))
+
+    clicked = hovered = False
+    if fidget:
+        imgui.invisible_button(f"##spin{key}", ImVec2(box, box))
+        hovered = imgui.is_item_hovered()
+        clicked = imgui.is_item_clicked()
+        if hovered:
+            imgui.set_mouse_cursor(imgui.MouseCursor_.hand)
+        hover_tick(f"spin:{key}", hovered)
+        if clicked:
+            st["boost"] = boost
+            sound.play("click")
+        imgui.set_cursor_screen_pos(o)
+
+    # wind down toward rest, frame-rate independently
+    st["boost"] *= math.exp(-decay * dt)
+    if st["boost"] < 0.01:
+        st["boost"] = 0.0
+    rate = speed * SPINNER_SPEED * (1.0 + st["boost"] + (0.25 if hovered else 0.0))
+    st["phase"] += dt * rate
+
     custom = skins.painter("spinner")
-    if custom is None or not custom(dl, cx, cy, r, t, phase):
-        a0 = (phase * 2.6) % (math.tau)
-        dl.path_arc_to(ImVec2(cx, cy), r * 0.82, a0, a0 + 2.1, 24)
+    drew = False
+    if custom is not None:
+        drew = bool(custom(dl, cx, cy, r, t, st["phase"], rate)
+                    if _spin_arity(custom) >= 7
+                    else custom(dl, cx, cy, r, t, st["phase"]))
+    if not drew:
+        # the stock arc has no decoration, so it fills the box, and it
+        # lengthens as it speeds up - the one thing a bare arc can do
+        a0 = (st["phase"] * 2.6) % math.tau
+        sweep = 2.1 + 1.4 * min(1.0, (rate - 1.0) / 4.0)
+        dl.path_arc_to(ImVec2(cx, cy), half * 0.82, a0, a0 + sweep, 28)
         dl.path_stroke(theme_mod.u32(colour or t.accent, 0.95),
-                       max(1.8, r * 0.22), 0)
-        dl.add_circle(ImVec2(cx, cy), r * 0.82,
-                      theme_mod.u32(t.border, 0.5), 32, max(1.2, r * 0.12))
-    imgui.dummy(ImVec2(r * 2, r * 2))
+                       max(1.8, half * 0.22), 0)
+        dl.add_circle(ImVec2(cx, cy), half * 0.82,
+                      theme_mod.u32(t.border, 0.5), 32, max(1.2, half * 0.12))
+    imgui.dummy(ImVec2(box, box))
     if label:
         imgui.same_line(0, 9)
         imgui.text_colored(t.text_dim, label)
+    return clicked

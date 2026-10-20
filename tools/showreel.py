@@ -29,7 +29,7 @@ sys.path.insert(0, str(ROOT / "examples"))
 from imgui_bundle import ImVec2, hello_imgui, imgui       # noqa: E402
 
 import vertexui as vui                                    # noqa: E402
-from vertexui import compose, fonts, profiles             # noqa: E402
+from vertexui import compose, fonts, profiles, widgets    # noqa: E402
 
 import spotlight                                          # noqa: E402
 
@@ -92,14 +92,18 @@ def timeline(apps):
     move(430, 160)                      # the tank segmented control
     hold(lambda: None, 10)
     move(470, 225)                      # log reading
-    hold(lambda: None, 16)
+    hold(lambda: None, 10)
+    move(118, 150)                      # onto the bubble
+    hold(lambda: widgets.spin_boost("sampler"), 30)
     move(150, 400)                      # down over the gauges
     hold(lambda: None, 18)
 
     # --- steel ball run ----------------------------------------------
     hold(show(1), 10)
-    move(722, 214)                      # the live switch, beside the ball
-    hold(lambda: None, 22)
+    move(740, 175)                      # onto the steel ball
+    hold(lambda: widgets.spin_boost("race"), 32)
+    move(722, 214)                      # the live switch
+    hold(lambda: None, 12)
     move(222, 292)                      # the stage segmented control
     hold(lambda: None, 12)
     move(652, 296)                      # flag stage
@@ -109,8 +113,10 @@ def timeline(apps):
 
     # --- y2k ----------------------------------------------------------
     hold(show(2), 10)
-    move(60, 380)                       # spin up, beside the CD
-    hold(lambda: None, 24)
+    move(64, 352)                       # onto the disc
+    hold(lambda: widgets.spin_boost("cd"), 32)
+    move(60, 395)                       # the spin-up switch
+    hold(lambda: None, 12)
     move(240, 430)                      # the node segmented control
     hold(lambda: None, 12)
     move(650, 360)                      # execute

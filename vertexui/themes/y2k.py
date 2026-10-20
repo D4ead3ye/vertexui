@@ -194,7 +194,7 @@ def hover_aura(dl, x0, y0, x1, y1, t, amount, kind):
                     theme_mod.u32(col, 0.30 * amount / i), 0.0, 1.0)
 
 
-def spinner(dl, cx, cy, r, t, phase):
+def spinner(dl, cx, cy, r, t, phase, spin=1.0):
     """A CD-ROM on its spindle.
 
     The holographic sweep is wedges round the disc whose hue depends on
@@ -202,7 +202,15 @@ def spinner(dl, cx, cy, r, t, phase):
     is itself turning - which is what a real disc does and is the whole
     reason it reads as holographic rather than as a painted wheel.
     """
-    spin = phase * 7.0
+    heat = max(0.0, min(1.0, (spin - 1.0) / 4.0))
+    turn = phase * 7.0
+    # A disc read too fast wobbles on its spindle, and the two lobes smear
+    # into one continuous ring - that is the form change, and it falls out
+    # of one exponent rather than a separate mode.
+    wobble = math.sin(phase * 23.0) * r * 0.045 * heat
+    cx += wobble
+    cy += math.cos(phase * 19.0) * r * 0.03 * heat
+    r = r * (1.0 - 0.03 * heat)
     disc = rgb("#171a22")
     dl.add_circle_filled(ImVec2(cx, cy), r, theme_mod.u32(disc), 56)
 
@@ -217,10 +225,10 @@ def spinner(dl, cx, cy, r, t, phase):
         # |cos| is already two lobes 180 degrees apart, which is what a
         # disc shows. A second term looked like more holograph and was
         # really four wide lobes, i.e. a colour wheel.
-        sheen = abs(math.cos(a0 - spin)) ** 16
+        sheen = abs(math.cos(a0 - turn)) ** (16.0 - 13.0 * heat)
         if sheen < 0.015:
             continue
-        hue = (a0 / math.tau * 3.0 + spin * 0.18) % 1.0
+        hue = (a0 / math.tau * 3.0 + turn * 0.18) % 1.0
         dl.add_triangle_filled(
             ImVec2(cx, cy),
             ImVec2(cx + math.cos(a0) * r, cy + math.sin(a0) * r),
@@ -238,16 +246,26 @@ def spinner(dl, cx, cy, r, t, phase):
     dl.add_circle_filled(ImVec2(cx, cy), r * 0.27, theme_mod.u32(CHROME_LO))
     dl.add_circle_filled(ImVec2(cx, cy), r * 0.15, theme_mod.u32(VOID))
     # a glint on the hub, turning with the disc
-    gx, gy = cx + math.cos(spin) * r * 0.21, cy + math.sin(spin) * r * 0.21
+    gx, gy = cx + math.cos(turn) * r * 0.21, cy + math.sin(turn) * r * 0.21
     dl.add_circle_filled(ImVec2(gx, gy), r * 0.05,
                          theme_mod.u32(CHROME_HI, 0.9))
     dl.add_circle(ImVec2(cx, cy), r, theme_mod.u32(CHROME_LO), 56, 1.3)
+    if heat > 0.02:
+        # the rim smears into a bright band as it comes up to speed
+        dl.add_circle(ImVec2(cx, cy), r * 1.03,
+                      theme_mod.u32(CHROME_HI, 0.30 * heat), 56, 1.0 + 2.0 * heat)
+        for i in range(3):
+            a = -turn * 0.3 - i * 0.5
+            dl.path_arc_to(ImVec2(cx, cy), r * (1.10 + i * 0.09), a, a + 1.1, 16)
+            dl.path_stroke(theme_mod.u32(CYAN if i % 2 else PINK,
+                                         0.35 * heat * (1.0 - i / 3.0)),
+                           1.4, 0)
     # the laser LED, blinking beside it
-    if math.sin(phase * 14.0) > 0.1:
-        lx, ly = cx + r * 1.35, cy + r * 0.72
-        dl.add_circle_filled(ImVec2(lx, ly), r * 0.26,
+    if math.sin(phase * (14.0 + 26.0 * heat)) > 0.1:
+        lx, ly = cx + r * 1.16, cy + r * 0.72
+        dl.add_circle_filled(ImVec2(lx, ly), r * 0.22,     # <= 1.38r
                              theme_mod.u32(rgb("#ff1a1a"), 0.28))
-        dl.add_circle_filled(ImVec2(lx, ly), r * 0.11,
+        dl.add_circle_filled(ImVec2(lx, ly), r * 0.10,
                              theme_mod.u32(rgb("#ff5252"), 0.95))
     return True
 

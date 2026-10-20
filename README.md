@@ -447,6 +447,8 @@ that character far more cheaply than noise would.
 The spinner is a water bubble: translucent body, a rim that brightens
 where you look through the most water, two highlights, a caustic pooling
 at its foot, micro bubbles rising, and ripple rings leaving its base.
+Spun up it stops being a circle at all - the rim deforms on two axes,
+which is the one thing a liquid can do that a solid cannot.
 
 Buttons are glass pills that squash when pressed — this is what put the
 `press` painter to work, which had been declared on `Skin` since the
@@ -495,6 +497,44 @@ paint.spiral(dl, cx, cy, 3, r, col)          # golden by default
 `scanlines` `notched` `chamfered` `pill` `spiral`. None of them reads the
 theme — they take colours and sizes, which is the only way a helper
 survives contact with a look it was not written for.
+
+## Spinners
+
+```python
+if widgets.spinner(80, key="job", speed=1.0):
+    ...                       # returns True on the frame it is clicked
+widgets.spin_boost("job")     # or spin it up when something actually starts
+```
+
+**Click one.** It spins up and winds back down on its own, and the painter
+is told the current *rate*, so each theme does something of its own at
+speed rather than merely turning faster:
+
+| | at rest | spun up |
+|---|---|---|
+| Steel Ball Run | a quiet green ball, a few focus lines | dense impact lines, afterimages smeared round its axis, and menacing marks |
+| Y2K Cyber | two narrow rainbow arcs on dark silver | the lobes smear into one continuous ring, the rim blurs, the disc wobbles on its spindle and the laser blinks faster |
+| Frutiger Aero | a round bubble | a droplet deforming on two axes, shedding twice the air |
+
+Two things this needed under the hood.
+
+**Rotation runs on an accumulated phase, not the wall clock.** Scaling
+`time.time()` moves the angle discontinuously the moment the multiplier
+changes, so a spin-up would jump. The widget integrates `dt * rate`
+instead and hands the painter the result, which means the rate can change
+every frame and the image never skips.
+
+**`size` is the box, and the painter gets a smaller core radius.** Auras,
+ripples, orbiting particles and trails are the whole point of these
+designs, so the widget reserves `SPINNER_BLEED` times the core and
+everything has to fit. Getting that wrong is visible: the first Frutiger
+bubble drew ripples out to 2.2× its radius inside a box that allowed 1.0,
+so the bubble sat high and left of the rings it was supposed to be
+making. All four spinners now measure zero overflow on every side, at
+rest and at full boost.
+
+`speed=` sets one spinner's rate, `widgets.SPINNER_SPEED` sets them all,
+and the settings panel has a slider for it.
 
 ## Minimal app
 

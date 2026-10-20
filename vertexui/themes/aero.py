@@ -192,21 +192,39 @@ def press(dl, x0, y0, x1, y1, t, amount):
                theme_mod.with_alpha(GLASS, 0.40 * amount), r * 0.8)
 
 
-def spinner(dl, cx, cy, r, t, phase):
+def spinner(dl, cx, cy, r, t, phase, spin=1.0):
     """A water bubble: breathing, shedding micro bubbles, rippling."""
+    heat = max(0.0, min(1.0, (spin - 1.0) / 4.0))
     breathe = 0.5 + 0.5 * math.sin(phase * 1.7)
     rr = r * (0.88 + 0.12 * breathe)
 
-    # ripple rings leaving the base, each on its own phase
+    def edge(a):
+        """The rim radius at angle `a`.
+
+        At rest a circle; under load a droplet wobbling on two axes,
+        which is the elasticity the brief asks for and the one thing a
+        liquid can do that a solid cannot.
+        """
+        if heat <= 0.01:
+            return rr
+        return rr * (1.0 + heat * (0.10 * math.sin(3.0 * a + phase * 9.0)
+                                   + 0.06 * math.sin(2.0 * a - phase * 6.0)))
+
+    body = [ImVec2(cx + math.cos(a) * edge(a), cy + math.sin(a) * edge(a))
+            for a in (i / 44.0 * math.tau for i in range(44))]
+
+    # Ripple rings leaving the base. Offset only slightly: they read as
+    # coming off the drop either way, and pushed right down they drag the
+    # whole composition's centre of mass below the bubble.
     for i in range(3):
         k = ((phase * 0.55 + i / 3.0) % 1.0)
-        rad = rr * (0.7 + k * 1.5)
-        dl.add_circle(ImVec2(cx, cy + rr * 0.72), rad,
+        rad = rr * (0.62 + k * 0.84)          # <= 1.46r, inside the box
+        dl.add_circle(ImVec2(cx, cy + rr * 0.30), rad,
                       theme_mod.u32(SKY_DEEP, 0.36 * (1.0 - k)),
                       32, 1.0 + 1.4 * (1.0 - k))
 
     # the body, lit from the upper left and thinning at the rim
-    dl.add_circle_filled(ImVec2(cx, cy), rr, theme_mod.u32(SKY, 0.42), 44)
+    dl.add_convex_poly_filled(body, theme_mod.u32(SKY, 0.42))
     steps = 12
     for i in range(steps, 0, -1):
         k = i / steps
@@ -220,7 +238,7 @@ def spinner(dl, cx, cy, r, t, phase):
     dl.add_circle_filled(ImVec2(cx, cy + rr * 0.32), rr * 0.46,
                          theme_mod.u32(GLASS, 0.30))
     # rim: a bubble is brightest where you look through the most water
-    dl.add_circle(ImVec2(cx, cy), rr, theme_mod.u32(GLASS, 0.85), 44, 1.8)
+    dl.add_polyline(body + [body[0]], theme_mod.u32(GLASS, 0.85), 1.8, 0)
     dl.path_arc_to(ImVec2(cx, cy), rr * 0.93, math.radians(20),
                    math.radians(140), 24)
     dl.path_stroke(theme_mod.u32(SKY_DEEP, 0.62), 1.9, 0)
@@ -235,10 +253,10 @@ def spinner(dl, cx, cy, r, t, phase):
                          theme_mod.u32(GLASS, 0.55))
 
     # micro bubbles rising out of it
-    for i in range(5):
+    for i in range(5 + int(5 * heat)):
         k = ((phase * 0.42 + i * 0.23) % 1.0)
         bx = cx + math.sin(phase * 1.1 + i * 2.0) * rr * 0.42
-        by = cy - rr * 0.6 - k * rr * 1.9
+        by = cy - rr * 0.55 - k * rr * 0.85    # <= 1.4r above centre
         br = max(0.7, rr * 0.11 * (1.0 - k * 0.5))
         fade = (1.0 - k) * 0.8
         dl.add_circle_filled(ImVec2(bx, by), br, theme_mod.u32(GLASS, fade))

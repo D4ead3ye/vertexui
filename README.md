@@ -508,12 +508,19 @@ widgets.spin_boost("job")     # or spin it up when something actually starts
 
 **Click one.** It spins up and winds back down on its own, and the painter
 is told the current *rate*, so each theme does something of its own at
-speed rather than merely turning faster:
+speed rather than merely turning faster.
+
+The rate is a chase, not a step: a click raises a target that decays, and
+the live rate follows it, so the thing *accelerates* into the spin rather
+than snapping to full speed on the frame you touched it. Measured at
+60fps it reaches 4.8× in about a quarter of a second and is back under
+1.1× by 2.4 seconds, identically in every theme. Clicking again while it
+is already going adds to the target instead of restarting it.
 
 | | at rest | spun up |
 |---|---|---|
 | Steel Ball Run | a quiet green ball, a few focus lines | dense impact lines, afterimages smeared round its axis, and menacing marks |
-| Y2K Cyber | two narrow rainbow arcs on dark silver | the lobes smear into one continuous ring, the rim blurs, the disc wobbles on its spindle and the laser blinks faster |
+| Y2K Cyber | two narrow rainbow arcs on dark silver | the lobes smear into one continuous ring, the rim blurs and the laser blinks faster |
 | Frutiger Aero | a round bubble | a droplet deforming on two axes, shedding twice the air |
 
 Two things this needed under the hood.

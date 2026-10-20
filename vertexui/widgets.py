@@ -616,13 +616,13 @@ def spin_boost(key="spin", amount=5.0):
     a job starting, a disc being read, a sample drawn. It winds down on
     its own, so there is nothing to clear afterwards.
     """
-    st = _spin.setdefault(key, {"phase": 0.0, "boost": 0.0})
-    st["boost"] = max(st["boost"], float(amount))
-    return st["boost"]
+    st = _spin.setdefault(key, {"phase": 0.0, "boost": 0.0, "kick": 0.0})
+    st["kick"] = max(st.get("kick", 0.0), float(amount))
+    return st["kick"]
 
 
 def spinner(size=26.0, key="spin", label=None, colour=None, speed=1.0,
-            fidget=True, boost=5.0, decay=1.7) -> bool:
+            fidget=True, boost=6.0, decay=1.7, attack=9.0, cap=9.0) -> bool:
     """A busy indicator. Returns True on the frame it is clicked.
 
     `size` is the box the widget occupies, and the painter is handed the
@@ -639,6 +639,13 @@ def spinner(size=26.0, key="spin", label=None, colour=None, speed=1.0,
     theme can do something of its own at speed rather than merely turning
     faster.
 
+    The rate is a chase, not a step. A click raises a target that decays
+    at `decay`, and the live rate follows it at `attack` - so the thing
+    accelerates into the spin instead of snapping to full speed on the
+    frame you touched it, which is what the first version did. Clicking
+    again while it is already going adds to the target rather than
+    restarting it, up to `cap`.
+
     Rotation runs on an accumulated phase rather than on the wall clock,
     which is the only way the rate can change without the image jumping:
     scaling `time.time()` moves the angle discontinuously the moment the
@@ -654,7 +661,9 @@ def spinner(size=26.0, key="spin", label=None, colour=None, speed=1.0,
     cx, cy = o.x + half, o.y + half
     anim.mark_busy()
 
-    st = _spin.setdefault(key, {"phase": _time.time() % 1000.0, "boost": 0.0})
+    st = _spin.setdefault(key, {"phase": _time.time() % 1000.0,
+                                "boost": 0.0, "kick": 0.0})
+    st.setdefault("kick", 0.0)
     dt = min(0.05, max(0.0001, imgui.get_io().delta_time))
 
     clicked = hovered = False
@@ -666,15 +675,22 @@ def spinner(size=26.0, key="spin", label=None, colour=None, speed=1.0,
             imgui.set_mouse_cursor(imgui.MouseCursor_.hand)
         hover_tick(f"spin:{key}", hovered)
         if clicked:
-            st["boost"] = boost
+            st["kick"] = min(cap, st["kick"] + boost)
             sound.play("click")
         imgui.set_cursor_screen_pos(o)
 
-    # wind down toward rest, frame-rate independently
-    st["boost"] *= math.exp(-decay * dt)
-    if st["boost"] < 0.01:
+    # The target winds down; the live rate chases it. Both are
+    # exponential on the frame delta, so the curve is the same at 30fps
+    # and at 144 - and hovering goes through the same chase, so even that
+    # eases in rather than stepping.
+    st["kick"] *= math.exp(-decay * dt)
+    if st["kick"] < 0.004:
+        st["kick"] = 0.0
+    want = st["kick"] + (0.3 if hovered else 0.0)
+    st["boost"] += (want - st["boost"]) * (1.0 - math.exp(-attack * dt))
+    if st["boost"] < 0.004 and want == 0.0:
         st["boost"] = 0.0
-    rate = speed * SPINNER_SPEED * (1.0 + st["boost"] + (0.25 if hovered else 0.0))
+    rate = speed * SPINNER_SPEED * (1.0 + st["boost"])
     st["phase"] += dt * rate
 
     custom = skins.painter("spinner")

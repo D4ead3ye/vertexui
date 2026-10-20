@@ -204,13 +204,11 @@ def spinner(dl, cx, cy, r, t, phase, spin=1.0):
     """
     heat = max(0.0, min(1.0, (spin - 1.0) / 4.0))
     turn = phase * 7.0
-    # A disc read too fast wobbles on its spindle, and the two lobes smear
-    # into one continuous ring - that is the form change, and it falls out
-    # of one exponent rather than a separate mode.
-    wobble = math.sin(phase * 23.0) * r * 0.045 * heat
-    cx += wobble
-    cy += math.cos(phase * 19.0) * r * 0.03 * heat
-    r = r * (1.0 - 0.03 * heat)
+    # At speed the two lobes smear into one continuous ring - that is the
+    # form change, and it falls out of one exponent rather than a separate
+    # mode. An earlier version also translated the whole disc to suggest a
+    # wobbling spindle; at this size that reads as the widget jittering
+    # rather than as the disc turning, so it is gone.
     disc = rgb("#171a22")
     dl.add_circle_filled(ImVec2(cx, cy), r, theme_mod.u32(disc), 56)
 

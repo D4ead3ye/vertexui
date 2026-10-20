@@ -311,9 +311,27 @@ subclassing, and a theme that only wants a palette never touches it.
 
 ![Steel Ball Run](docs/sbr.png)
 
-Araki western: desert parchment ground, pages held in engraved brass
-frames with notched corners, cross-hatched ink instead of blurred shadow,
-serif throughout, Araki magenta with turquoise as its foil.
+Araki western: desert parchment ground, panels held in engraved brass
+frames with notched corners and ornate bracket flourishes, headers that
+are struck brass nameplates rather than a label and a rule, and serif
+throughout.
+
+The manga vocabulary is load-bearing rather than decorative, and it is
+what separates this from a western palette:
+
+* **halftone screentone** where a flat theme would use a tint — ben-day
+  dots on a 45° lattice, growing toward the foot of each panel, because
+  that is how a page gets a grey without a grey ink
+* **cross-hatched ink** where a flat theme would use a blurred shadow
+* **focus lines and rising menacing marks** on hover where a flat theme
+  would use a glow. A glow is a lighting effect and this interface has no
+  lights in it; the page's own way of saying *look here* is to point every
+  line at the thing. The ゴ marks are drawn from three strokes rather than
+  typed, since the glyph needs a Japanese range in the font atlas — a
+  megabyte of texture for one decorative character
+* **variable-weight borders** — heavy ink with a lighter brass companion
+  inside it, which is how a panel border is actually inked. One even line
+  was the single thing that made the first cut look flat
 
 ![The same code on two profiles](docs/sbr_contrast.png)
 
@@ -332,11 +350,17 @@ app = compose.App(profile=themes.SBR)
 
 ![Riders](docs/sbr_riders.png)
 
-The spinner is Gyro's steel ball — a lit sphere turning about a vertical
-axis, where each etched groove is a meridian whose half-width is the
-cosine of how far round it has come. That is what sells the rotation with
-no 3D involved, and the poles stay put, which is where the green accents
-go.
+The spinner is Gyro's steel ball, and **Gyro's are green** — a green metal
+that desaturates toward white at the highlight, which is what stops it
+reading as painted plastic. It turns about a vertical axis, so each etched
+groove is a meridian whose half-width is the cosine of how far round it
+has come; that sells the rotation with no 3D involved, and the poles stay
+put, which is where the brass caps go.
+
+One more thing a sphere needs: **bounce light along its shaded edge**.
+Without it the thing reads as a flat disc with a dot on it however good
+the ramp is, because the dark side of a polished object is never the
+darkest part of the picture.
 
 Two things worth knowing if you write one of these:
 

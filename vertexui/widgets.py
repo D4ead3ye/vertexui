@@ -89,6 +89,9 @@ def button(label, width=0.0, height=36.0, primary=False, enabled=True,
     if aura is not None and hot > 0.01:
         aura(dl, p0.x, p0.y, p1.x, p1.y, t, hot,
              "primary" if primary else "button")
+    squash = skins.painter("press")
+    if squash is not None and press > 0.01:
+        squash(dl, p0.x, p0.y, p1.x, p1.y, t, press)
     if hot > 0.01:
         dl.add_rect(p0, p1, imgui.get_color_u32(
             theme_mod.with_alpha(t.accent, 0.55 * hot)), t.rounding, 1.0)
@@ -529,8 +532,11 @@ def badge(text, kind="info", icon=None):
     pos = imgui.get_cursor_screen_pos()
     tw = imgui.calc_text_size(text).x
     w, h = tw + 40, 22.0
-    dl.add_rect_filled(ImVec2(pos.x, pos.y), ImVec2(pos.x + w, pos.y + h),
-                       imgui.get_color_u32(theme_mod.with_alpha(col, 0.14)), h * 0.5)
+    ground = skins.painter("frame")
+    if ground is None or not ground(dl, pos.x, pos.y, w, h, t, f"badge:{kind}"):
+        dl.add_rect_filled(ImVec2(pos.x, pos.y), ImVec2(pos.x + w, pos.y + h),
+                           imgui.get_color_u32(theme_mod.with_alpha(col, 0.14)),
+                           h * 0.5)
     icons.draw(icon, dl, pos.x + 14, pos.y + h * 0.5, 6.0, imgui.get_color_u32(col))
     dl.add_text(ImVec2(pos.x + 26, pos.y + (h - imgui.get_text_line_height()) * 0.5),
                 imgui.get_color_u32(col), text)

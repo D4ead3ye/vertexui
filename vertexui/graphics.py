@@ -310,7 +310,7 @@ def levels(values, width=0.0, height=70.0, peaks=None, lo=0.0, hi=1.0,
 # --- radial ------------------------------------------------------------
 
 def gauge(value, lo=0.0, hi=1.0, radius=46.0, label="", unit="", colour=None,
-          thickness=9.0, sweep=250.0):
+          thickness=9.0, sweep=250.0, value_fmt=None):
     """An arc dial with the number in the middle.
 
     The arc is worth the pixels over a bar when the range matters as much
@@ -337,7 +337,9 @@ def gauge(value, lo=0.0, hi=1.0, radius=46.0, label="", unit="", colour=None,
             ImVec2(cx + math.cos(ang) * radius, cy + math.sin(ang) * radius),
             thickness * 0.42, _col(t.accent_bright if colour is None else c))
     with fonts.use("big"):
-        txt = f"{value:.4g}"
+        # %.4g gives 24.24 where the dial has room for 24.2 - the default
+        # is a sane guess and the caller usually knows better
+        txt = value_fmt(value) if value_fmt else f"{value:.4g}"
         ts = imgui.calc_text_size(txt)
         dl.add_text(ImVec2(cx - ts.x * 0.5, cy - ts.y * 0.62), _col(t.text), txt)
     with fonts.use("label"):
@@ -353,7 +355,7 @@ def gauge(value, lo=0.0, hi=1.0, radius=46.0, label="", unit="", colour=None,
 
 
 def ring(value, lo=0.0, hi=1.0, radius=34.0, thickness=7.0, colour=None,
-         centre=None):
+         centre=None, value_fmt=None):
     """A closed donut. For a proportion that genuinely wraps - a budget
     used, a disk filled - where a dial's gap would imply a scale end."""
     t = theme_mod.current()
@@ -369,7 +371,8 @@ def ring(value, lo=0.0, hi=1.0, radius=34.0, thickness=7.0, colour=None,
         a0 = -math.pi * 0.5
         dl.path_arc_to(ImVec2(cx, cy), radius, a0, a0 + 2 * math.pi * frac, 64)
         dl.path_stroke(_col(c, 0.95), thickness, 0)
-    txt = centre if centre is not None else f"{frac * 100:.0f}%"
+    txt = centre if centre is not None else (
+        value_fmt(value) if value_fmt else f"{frac * 100:.0f}%")
     with fonts.use("semi"):
         ts = imgui.calc_text_size(txt)
         dl.add_text(ImVec2(cx - ts.x * 0.5, cy - ts.y * 0.5), _col(t.text), txt)

@@ -131,6 +131,9 @@ from Y2K and both are now available to every theme.
   `theme.is_light` for washes and fills rather than picking one value.
 * A golden spiral grows by phi every quarter turn, so draw it from the
   outside inward or it overflows a float before the third turn.
+* A draw list cannot blur what is behind it. Glassmorphism here means a
+  background with no hard edges and translucent plates over it, which
+  gets there by construction and costs nothing.
 * A card owns its own `ImDrawListSplitter`, which is what makes nesting
   legal. Do not go back to `draw_list.channels_split`.
 

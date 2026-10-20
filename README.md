@@ -57,7 +57,7 @@ A profile is all of that at once, named after the kind of work it is for.
 
 ![Seven profiles](docs/profiles.png)
 
-**That image is one application.** Same four modules, same data, nine
+**That image is one application.** Same four modules, same data, ten
 profiles — and it is in the repo as `tools/matrix.py` precisely so the
 claim can be checked rather than believed.
 
@@ -66,6 +66,7 @@ claim can be checked rather than believed.
 | `NOIR` | tabbed | the toolkit's original look, kept so nothing regresses |
 | `SBR` | tabbed | Araki western — parchment, brass, notched corners, golden ratio |
 | `Y2K` | tabbed | Win98 chrome, neon on pitch black, a CD-ROM spinner |
+| `AERO` | tabbed | glass over sky and grass, a water bubble, about 2007 |
 | `INSTRUMENT` | dense | telemetry and profiling — amber on slate, square corners, 0.82 density |
 | `CONSOLE` | dense | logs and command output — phosphor, mono throughout, zero radius |
 | `MINIMAL` | stage | one job, one number — no navigation, 14px corners, slow and quiet |
@@ -402,6 +403,42 @@ right: `|cos(angle - spin)|` is **already** two lobes 180° apart, which is
 what a disc shows. Adding a second term looked like more holograph and was
 really four wide lobes — a colour wheel. One term at a high exponent gives
 two narrow arcs sweeping a dark silver disc, which is what a CD does.
+
+### Frutiger Aero
+
+![Frutiger Aero](docs/aero.png)
+
+Sky blue over grass green, sunlit yellow, crisp translucent white, and a
+deep slate blue for type. Generous radii, pill shapes, soft outer glows,
+and a bright specular sweep across the top half of everything.
+
+![The same code on two profiles](docs/aero_contrast.png)
+
+**On the glassmorphism**, because it is the one thing here that cannot be
+done the way it is usually described: a draw list cannot blur what is
+behind it — there is no way to sample the framebuffer mid-frame. But the
+blur in this aesthetic was always *of a soft gradient*, and a blurred soft
+gradient is just a softer gradient. So the background painter lays down
+sky, grass, sun and caustics with no hard edges anywhere, and the cards
+are translucent white over it. Frosted glass by construction rather than
+by post-processing, and it costs nothing.
+
+The gloss is two parts and both are needed: a broad wash over the top
+~45% of the shape, and a narrow diagonal band crossing it. The wash alone
+reads as a gradient; the band is what says the surface is hard and
+catching a light source.
+
+Caustics are a few dozen drifting arcs rather than a procedural field —
+caustics are bright curved filaments with dark between them, and arcs get
+that character far more cheaply than noise would.
+
+The spinner is a water bubble: translucent body, a rim that brightens
+where you look through the most water, two highlights, a caustic pooling
+at its foot, micro bubbles rising, and ripple rings leaving its base.
+
+Buttons are glass pills that squash when pressed — this is what put the
+`press` painter to work, which had been declared on `Skin` since the
+start and never called by anything.
 
 ## Minimal app
 
@@ -934,6 +971,7 @@ that a thing runs and two opposed ones show that it is actually modular:
 | `examples/intake.py` | the opposite — one form, one screen, zoomed up |
 | `examples/steelball.py` | a themed race board; `--profile noir` strips it back to stock |
 | `examples/cyberdeck.py` | a Y2K system monitor built out of floating windows |
+| `examples/habitat.py` | a Frutiger Aero habitat monitor — glass over water |
 
 ![Ledger and intake](docs/ledger.png)
 

@@ -143,6 +143,12 @@ is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
 * A spinner painter draws within `widgets.SPINNER_BLEED` of the core
   radius it is handed. Overflowing it is how the Frutiger bubble ended up
   offset from its own ripples.
+* Setting `io.mouse_pos` inside a frame positions the pointer but never
+  hovers anything: ImGui picks the hovered *window* during NewFrame from
+  what the platform backend reported, and the backend overwrites our
+  value every frame. A recording that needs hover states has to move the
+  real OS cursor and hold the window in the foreground - see
+  `tools/showreel.py`.
 * A draw list cannot blur what is behind it. Glassmorphism here means a
   background with no hard edges and translucent plates over it, which
   gets there by construction and costs nothing.
@@ -154,6 +160,8 @@ is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
 ```bash
 python tools/smoke.py          # every screen, every state, every layout
 python tools/showreel.py       # re-record the three-theme clip
+                               # (it takes over the mouse; --no-pointer opts out,
+                               #  at the cost of hover states not lighting up)
 python tools/matrix.py tile    # regenerate docs/profiles.png
 python tools/shots.py          # regenerate the stills
 python tools/spotlight.py      # re-record the looping clip

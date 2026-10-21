@@ -34,8 +34,96 @@ from vertexui import compose, fonts, profiles, widgets    # noqa: E402
 import spotlight                                          # noqa: E402
 
 W, H = 1120, 740
+TITLE = "vertexui showreel"
 FPS = 25
 OUT = ROOT / "docs" / "showreel.gif"
+
+
+_U32 = ctypes.windll.user32 if sys.platform == "win32" else None
+
+
+class _POINT(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+
+class Pointer:
+    """Drives the real OS cursor over the recording window.
+
+    Injecting `io.mouse_pos` inside the frame is not enough to make a
+    control light up. ImGui decides which *window* is hovered during
+    NewFrame, from the position the platform backend reported - and the
+    backend overwrites anything we set, every frame. So nothing is ever
+    hovered, the buttons stay cold, and the clip looks like the pointer
+    is passing straight through them.
+
+    Moving the actual cursor fixes it at the source: hover, press and
+    every skin's hover_aura then behave exactly as they do for a person.
+    The cursor is put back where it was when the recording ends.
+    """
+
+    def __init__(self, title):
+        self.title = title
+        self.hwnd = 0
+        self.origin = None
+        self.restore = None
+        self.ok = False
+
+    def _foreground(self):
+        """Make our window the foreground one, and keep it there.
+
+        Windows refuses SetForegroundWindow from a process that is not
+        already in front, which is why a recording would sometimes come
+        out with every control cold: the position was right, the window
+        simply was not hovered. Attaching to the current foreground
+        thread's input queue first is the documented way round it, and
+        it is re-asserted whenever focus wanders.
+        """
+        hwnd = ctypes.c_void_p(self.hwnd)
+        fg = _U32.GetForegroundWindow()
+        if fg == self.hwnd:
+            return True
+        k32 = ctypes.windll.kernel32
+        mine = k32.GetCurrentThreadId()
+        other = _U32.GetWindowThreadProcessId(ctypes.c_void_p(fg), None)
+        if other and other != mine:
+            _U32.AttachThreadInput(other, mine, True)
+        _U32.BringWindowToTop(hwnd)
+        _U32.SetForegroundWindow(hwnd)
+        if other and other != mine:
+            _U32.AttachThreadInput(other, mine, False)
+        return _U32.GetForegroundWindow() == self.hwnd
+
+    def find(self):
+        if _U32 is None:
+            return None
+        if self.origin is None:
+            _U32.FindWindowW.restype = ctypes.c_void_p
+            _U32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+            _U32.GetForegroundWindow.restype = ctypes.c_void_p
+            hwnd = _U32.FindWindowW(None, self.title)
+            if not hwnd:
+                return None
+            self.hwnd = hwnd
+            p = _POINT(0, 0)
+            _U32.ClientToScreen(ctypes.c_void_p(hwnd), ctypes.byref(p))
+            if self.restore is None:
+                was = _POINT(0, 0)
+                _U32.GetCursorPos(ctypes.byref(was))
+                self.restore = (was.x, was.y)
+            self.origin = (p.x, p.y)
+        self.ok = self._foreground()
+        return self.origin
+
+    def move(self, x, y):
+        o = self.find()
+        if o is None:
+            return False
+        _U32.SetCursorPos(int(o[0] + x), int(o[1] + y))
+        return True
+
+    def release(self):
+        if _U32 is not None and self.restore is not None:
+            _U32.SetCursorPos(*self.restore)
 
 
 def build():
@@ -57,18 +145,32 @@ def build():
 
 
 def timeline(apps):
-    """(frames, kind, payload). `kind` is move / do, as in spotlight."""
+    """(frames, kind, payload). `kind` is move / do, as in spotlight.
+
+    Target coordinates are the measured centres of the real controls at
+    this window size, not guesses. They drifted once already - the card
+    holding each spinner grew when the spinner did, which pushed every
+    control below it down by a dozen pixels and left the cursor hovering
+    just above three buttons in a row. `on=True` marks a move that is
+    supposed to land on something interactive, and the recorder checks it.
+    """
     plan = []
     at = [(W * 0.5, H * 0.5)]
 
-    def move(x, y):
+    def move(x, y, on=False):
         d = math.dist(at[0], (x, y))
         n = max(7, min(26, int(d / 20) + 4))
-        plan.append((n, "move", (x, y)))
+        plan.append((n, "move", (x, y), on))
         at[0] = (x, y)
+        return on
 
-    def hold(fn, n):
-        plan.append((n, "do", fn))
+    def hold(fn, n, check=False):
+        plan.append((n, "do", fn, check))
+
+    def visit(x, y, fn, n):
+        """Travel onto a control and act once there, checking it landed."""
+        move(x, y, on=True)
+        hold(fn, n, check=True)
 
     def show(i):
         def go():
@@ -85,67 +187,59 @@ def timeline(apps):
             a.profile.apply(a.app_id)
         return go
 
-    # --- aero ---------------------------------------------------------
+    nothing = lambda: None
+
+    # --- aero: habitat ------------------------------------------------
     hold(show(0), 16)
-    move(250, 150)                      # the sampling switch
-    hold(lambda: None, 12)
-    move(430, 160)                      # the tank segmented control
-    hold(lambda: None, 10)
-    move(470, 225)                      # log reading
-    hold(lambda: None, 10)
-    move(118, 150)                      # onto the bubble
-    hold(lambda: widgets.spin_boost("sampler"), 30)
-    move(150, 400)                      # down over the gauges
-    hold(lambda: None, 18)
+    visit(268, 146, nothing, 14)            # the Sampling switch
+    visit(435, 153, nothing, 12)            # the Reef segment
+    visit(470, 217, nothing, 14)            # Log reading
+    visit(74, 180, lambda: widgets.spin_boost("sampler"), 34)   # the bubble
+    move(150, 380)                          # away, over the gauges
+    hold(nothing, 16)
 
-    # --- steel ball run ----------------------------------------------
+    # --- steel ball run ------------------------------------------------
     hold(show(1), 10)
-    move(740, 175)                      # onto the steel ball
-    hold(lambda: widgets.spin_boost("race"), 32)
-    move(722, 214)                      # the live switch
-    hold(lambda: None, 12)
-    move(222, 292)                      # the stage segmented control
-    hold(lambda: None, 12)
-    move(652, 296)                      # flag stage
-    hold(lambda: None, 20)
-    move(400, 500)                      # across the standings
-    hold(lambda: None, 14)
+    visit(727, 169, lambda: widgets.spin_boost("race"), 34)     # the ball
+    visit(716, 238, nothing, 14)            # the Live switch
+    visit(220, 316, nothing, 14)            # the Devil's Palm segment
+    visit(650, 319, nothing, 20)            # Flag stage
+    move(400, 520)                          # down the standings
+    hold(nothing, 12)
 
-    # --- y2k ----------------------------------------------------------
+    # --- y2k: cyberdeck -------------------------------------------------
     hold(show(2), 10)
-    move(64, 352)                       # onto the disc
-    hold(lambda: widgets.spin_boost("cd"), 32)
-    move(60, 395)                       # the spin-up switch
-    hold(lambda: None, 12)
-    move(240, 430)                      # the node segmented control
-    hold(lambda: None, 12)
-    move(650, 360)                      # execute
-    hold(lambda: None, 20)
+    visit(71, 329, lambda: widgets.spin_boost("cd"), 34)        # the disc
+    visit(48, 406, nothing, 14)             # the Spin up switch
+    visit(78, 457, nothing, 12)             # the GIBSON segment
+    visit(648, 357, nothing, 20)            # EXECUTE
 
     # --- and the same application through every theme, live -----------
     hold(show(0), 12)
     move(560, 300)
     for name in ("noir", "steel-ball-run", "y2k-cyber", "frutiger-aero"):
         hold(theme(name), 26)
-    hold(lambda: None, 20)
+    hold(nothing, 20)
     return plan, state
 
 
-def record(dump):
+def record(dump, pointer=True):
     apps = build()
     for a in apps:
         a.setup()
     plan, state = timeline(apps)
-    total = sum(n for n, _, _ in plan)
+    total = sum(n for n, _, _, _ in plan)
     st = {"i": 0, "f": 0, "cursor": (W * 0.5, H * 0.5),
-          "from": (W * 0.5, H * 0.5), "n": 0}
+          "from": (W * 0.5, H * 0.5), "n": 0, "misses": [], "checks": 0,
+          "landed": False}
+    pen = Pointer(TITLE) if pointer else None
     dump.mkdir(parents=True, exist_ok=True)
 
     def gui():
         if st["i"] >= len(plan):
             hello_imgui.get_runner_params().app_shall_exit = True
             return
-        n, kind, payload = plan[st["i"]]
+        n, kind, payload, check = plan[st["i"]]
         if st["f"] == 0:
             st["from"] = st["cursor"]
             if kind == "do":
@@ -159,6 +253,25 @@ def record(dump):
         imgui.get_io().mouse_pos = ImVec2(float(st["cursor"][0]),
                                           float(st["cursor"][1]))
         apps[state["active"]].frame()
+        if check and st["f"] >= n - 4:
+            # Over the last few frames of the block, not just the final
+            # one: the OS delivers a cursor move asynchronously, so a
+            # single frame can still be reading the previous position.
+            if imgui.is_any_item_hovered():
+                st["landed"] = True
+            if st["f"] == n - 1:
+                st["checks"] += 1
+                if not st["landed"]:
+                    mp = imgui.get_io().mouse_pos
+                    st["misses"].append(
+                        (state["active"], tuple(round(v) for v in st["cursor"]),
+                         (round(mp.x), round(mp.y)),
+                         imgui.is_window_hovered()))
+                st["landed"] = False
+
+    def pre_frame():
+        if pen is not None:
+            pen.move(*st["cursor"])
 
     def grab():
         if st["i"] >= len(plan):
@@ -180,17 +293,30 @@ def record(dump):
             st["f"] = 0
 
     params = hello_imgui.RunnerParams()
-    params.app_window_params.window_title = "vertexui showreel"
+    params.app_window_params.window_title = TITLE
     params.app_window_params.window_geometry.size = (W, H)
     params.imgui_window_params.default_imgui_window_type = (
         hello_imgui.DefaultImGuiWindowType.provide_full_screen_window)
     params.callbacks.show_gui = gui
+    params.callbacks.pre_new_frame = pre_frame
     params.callbacks.before_swap = grab
     # start on the first app's identity; the rest are swapped in live
     vui.install(params, theme_=apps[0].profile.build_theme(),
                 faces=apps[0].profile.build_faces())
     hello_imgui.run(params)
+    if pen is not None:
+        pen.release()
+        if not pen.ok:
+            print("note: could not drive the real cursor - hover states "
+                  "will not light up in this recording")
     print(f"captured {st['n']} of {total} frames into {dump}")
+    print(f"cursor landed on a control for {st['checks'] - len(st['misses'])}"
+          f" of {st['checks']} targets")
+    if st["misses"]:
+        for app_i, pos, seen, win in st["misses"]:
+            print(f"  MISS  app {app_i} aimed {pos}  imgui saw {seen}  "
+                  f"window_hovered={win}")
+        return 1
     return 0 if st["n"] else 1
 
 

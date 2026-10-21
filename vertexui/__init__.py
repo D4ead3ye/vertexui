@@ -66,7 +66,7 @@ __all__ = ["anim", "backdrop", "cards", "compose", "dialogs", "effects",
            "end_frame",
            "App", "Module"]
 
-__version__ = "1.9.1"
+__version__ = "1.9.2"
 
 _LAZY = ("toasts", "effects", "backdrop", "graphics")
 

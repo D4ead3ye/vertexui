@@ -3,6 +3,11 @@
     python tools/showreel.py --record frames/     # GL + PyOpenGL
     python tools/showreel.py --encode frames/     # Pillow
 
+Recording drives the real mouse for about half a minute, because that is
+the only way ImGui reports a control as hovered - see `Pointer`.
+`--no-pointer` leaves the mouse alone, at the cost of every control in
+the clip staying cold.
+
 Three themed applications in one continuous take, then one of them
 flipping through every theme live - which is possible at all because
 `fonts.reload` can swap the typefaces at runtime. Before that, a theme
@@ -304,7 +309,10 @@ def record(dump, pointer=True):
     vui.install(params, theme_=apps[0].profile.build_theme(),
                 faces=apps[0].profile.build_faces())
     hello_imgui.run(params)
-    if pen is not None:
+    if pen is None:
+        print("note: --no-pointer, so hover states only light up where the "
+              "real mouse happens to be - controls will mostly look cold")
+    else:
         pen.release()
         if not pen.ok:
             print("note: could not drive the real cursor - hover states "
@@ -345,4 +353,4 @@ if __name__ == "__main__":
         sys.exit(encode(sys.argv[sys.argv.index("--encode") + 1]))
     d = sys.argv[sys.argv.index("--record") + 1] if "--record" in sys.argv \
         else str(ROOT / "_reel")
-    sys.exit(record(Path(d)))
+    sys.exit(record(Path(d), pointer="--no-pointer" not in sys.argv))

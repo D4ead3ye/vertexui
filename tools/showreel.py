@@ -1,4 +1,4 @@
-"""Record the three-theme showreel in docs/.
+"""Record the four-theme showreel in docs/.
 
     python tools/showreel.py --record frames/     # GL + PyOpenGL
     python tools/showreel.py --encode frames/     # Pillow
@@ -8,7 +8,7 @@ the only way ImGui reports a control as hovered - see `Pointer`.
 `--no-pointer` leaves the mouse alone, at the cost of every control in
 the clip staying cold.
 
-Three themed applications in one continuous take, then one of them
+Four themed applications in one continuous take, then one of them
 flipping through every theme live - which is possible at all because
 `fonts.reload` can swap the typefaces at runtime. Before that, a theme
 switch could change colour and shape but not type, so a reel like this
@@ -136,12 +136,14 @@ def build():
     from cyberdeck import Deck
     from habitat import Habitat
     from steelball import Race
+    from technodelic import Sequencer
 
     made = []
     for name, mod, title, app_id in (
             ("frutiger-aero", Habitat, "habitat", "vertexui-aero"),
             ("steel-ball-run", Race, "Steel Ball Run", "vertexui-sbr"),
-            ("y2k-cyber", Deck, "cyberdeck", "vertexui-y2k")):
+            ("y2k-cyber", Deck, "cyberdeck", "vertexui-y2k"),
+            ("ymo-technodelic", Sequencer, "technodelic", "vertexui-ymo")):
         app = compose.App(profile=profiles.get(name), title=title,
                           app_id=app_id, size=(W, H))
         app.use(mod())
@@ -219,10 +221,18 @@ def timeline(apps):
     visit(78, 457, nothing, 12)             # the GIBSON segment
     visit(648, 357, nothing, 20)            # EXECUTE
 
+    # --- ymo: technodelic -----------------------------------------------
+    hold(show(3), 10)
+    visit(831, 440, lambda: widgets.spin_boost("clk"), 34)      # the clock
+    visit(345, 165, nothing, 14)            # a key in the matrix
+    visit(359, 417, nothing, 16)            # SEED
+    visit(120, 547, nothing, 16)            # the Swing slider
+
     # --- and the same application through every theme, live -----------
     hold(show(0), 12)
     move(560, 300)
-    for name in ("noir", "steel-ball-run", "y2k-cyber", "frutiger-aero"):
+    for name in ("noir", "steel-ball-run", "y2k-cyber", "ymo-technodelic",
+                 "frutiger-aero"):
         hold(theme(name), 26)
     hold(nothing, 20)
     return plan, state
@@ -336,10 +346,10 @@ def encode(folder):
     spotlight.W, spotlight.H = W, H
     spotlight.FPS = FPS
     spotlight.OUT = OUT
-    # The single-theme spotlight is fine on 96 colours. Three saturated
+    # The single-theme spotlight is fine on 96 colours. Four saturated
     # palettes in one clip are not: median-cut spends its budget on
-    # whichever theme has the most frames and the other two come out with
-    # a cast - the sky went grey-green and the neon cyan vanished. 256 is
+    # whichever theme has the most frames and the others come out with a
+    # cast - the sky went grey-green and the neon cyan vanished. 256 is
     # the format's ceiling and the only honest answer here.
     spotlight.COLOURS = 256
     size = spotlight.encode([cv2.imread(str(f)) for f in files])

@@ -16,7 +16,7 @@ that imply about density, chrome, motion and type? Build from that answer.
 A tool gets a tab strip because its views are equal-weight and few, not
 because tab strips are what the toolkit has.
 
-If none of the seven profiles suits the domain, write one. A profile is
+If none of the eleven profiles suits the domain, write one. A profile is
 about twenty lines.
 
 ## 2. Visual and functional identity follows the domain
@@ -74,10 +74,10 @@ Current pairs:
   `--profile`, including a headless corner HUD under `--hud`
 * `examples/minimal.py` against `examples/ambience.py`
 
-`docs/profiles.png` is the falsifiable version of the claim: seven
-captures of one application under seven profiles. If they ever start
-looking like one program in seven colours, this document is wrong and the
-code needs fixing, not the README.
+`docs/profiles.png` is the falsifiable version of the claim: eleven
+captures of one application under eleven profiles. If they ever start
+looking like one program in eleven colours, this document is wrong and
+the code needs fixing, not the README.
 
 ## 5. Promote what gets written twice
 
@@ -108,9 +108,10 @@ lists them without anything else changing.
 
 When a theme needs something no painter covers, add the painter to `Skin`
 rather than special-casing the theme - `head` and `press_snap` came from
-Y2K, `press` was finally used by Aero, and `tabs` came from noticing that
-all three themes shared one navigation strip. Every one of them is now
-available to all of them.
+Y2K, `press` was finally used by Aero, `tabs` came from noticing that all
+three themes shared one navigation strip, and `label` came from YMO
+needing to letter its captions in an alphabet it draws itself. Every one
+of them is now available to all of them.
 
 A drawing routine written inside a second theme belongs in `paint`. That
 is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
@@ -154,12 +155,21 @@ is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
   gets there by construction and costs nothing.
 * A card owns its own `ImDrawListSplitter`, which is what makes nesting
   legal. Do not go back to `draw_list.channels_split`.
+* `table.row_begin` tints a row out to the window edge, because there is
+  no content-region accessor here. A table therefore belongs in a
+  full-width card; in a half-width one it paints over its neighbour.
+* The 1.92 atlas rasterises glyphs on demand, so a CJK face costs a file
+  handle until something actually draws a kanji. That is why `fonts`
+  carries a `cjk` role for every profile - it is free - and why the old
+  reasoning in `sbr._menacing` (a megabyte of texture for one glyph) no
+  longer applies. Guard real CJK text with `fonts.has("cjk")`, since the
+  face is a system font and may not be installed.
 
 ## Checks
 
 ```bash
 python tools/smoke.py          # every screen, every state, every layout
-python tools/showreel.py       # re-record the three-theme clip
+python tools/showreel.py       # re-record the four-theme clip
                                # (it takes over the mouse; --no-pointer opts out,
                                #  at the cost of hover states not lighting up)
 python tools/matrix.py tile    # regenerate docs/profiles.png

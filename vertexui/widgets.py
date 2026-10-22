@@ -190,13 +190,27 @@ def tabs(key: str, labels, current: int) -> int:
     origin = imgui.get_cursor_screen_pos()
     h, pad = 34.0, 18.0
 
+    # A skin may letter the captions itself - see `skins.Skin.label`. It
+    # has to be asked for the widths here, before anything is placed: a
+    # drawn alphabet does not advance like the face it replaces, and tabs
+    # measured in one and painted in the other land on top of each other.
+    letter = skins.painter("label")
+    cap_h = fonts.size("semi", 17.0) * 0.72
+
+    def _measure(lbl):
+        if letter is not None:
+            got = letter(None, 0.0, 0.0, cap_h, lbl, None, t, "tab")
+            if got is not None:
+                return float(got)
+        with fonts.use("semi"):
+            return imgui.calc_text_size(lbl).x
+
     widths, xs, x = [], [], origin.x
-    with fonts.use("semi"):
-        for lbl in labels:
-            w = imgui.calc_text_size(lbl).x + pad * 2
-            widths.append(w)
-            xs.append(x)
-            x += w + 4
+    for lbl in labels:
+        w = _measure(lbl) + pad * 2
+        widths.append(w)
+        xs.append(x)
+        x += w + 4
 
     # Measure the hover amounts first, so a skin that paints the whole
     # strip gets them all at once and can draw behind every label.
@@ -225,20 +239,26 @@ def tabs(key: str, labels, current: int) -> int:
                                imgui.get_color_u32(theme_mod.with_alpha(
                                    t.text, 0.055 * hot)),
                                skins.corner(t.rounding, t))
-        ts = imgui.calc_text_size(lbl)
         col = anim.lerp_col(t.text_dim, t.text, max(hot, 1.0 if on else 0.0))
-        with fonts.use("semi"):
-            dl.add_text(ImVec2(xs[i] + (widths[i] - ts.x) * 0.5,
-                               origin.y + (h - ts.y) * 0.5),
-                        imgui.get_color_u32(col), lbl)
+        drawn = None
+        if letter is not None:
+            lw = _measure(lbl)
+            drawn = letter(dl, xs[i] + (widths[i] - lw) * 0.5,
+                           origin.y + (h - cap_h) * 0.5, cap_h, lbl,
+                           imgui.get_color_u32(col), t, "tab")
+        if drawn is None:
+            ts = imgui.calc_text_size(lbl)
+            with fonts.use("semi"):
+                dl.add_text(ImVec2(xs[i] + (widths[i] - ts.x) * 0.5,
+                                   origin.y + (h - ts.y) * 0.5),
+                            imgui.get_color_u32(col), lbl)
 
     # The indicator chases both x and width, so switching reads as one
     # object moving rather than two appearing. It spans the LABEL, not the
     # padded tab box - a rule that runs wider than the word it underlines
     # reads as a box someone forgot to finish.
     if not painted:
-        with fonts.use("semi"):
-            label_w = imgui.calc_text_size(labels[current]).x
+        label_w = _measure(labels[current])
         ix = anim.to(f"tabx:{key}",
                      xs[current] + (widths[current] - label_w) * 0.5, 18.0)
         iw = anim.to(f"tabw:{key}", label_w, 18.0)

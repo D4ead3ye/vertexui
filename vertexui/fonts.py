@@ -11,7 +11,7 @@ one-file exe, which bundled font assets did not.
     with fonts.use("semi"):
         imgui.text("heading")
 
-Roles, not filenames. Seven of them, and the spread between them is the
+Roles, not filenames. Eight of them, and the spread between them is the
 point: one face doing every job is most of what makes an interface look
 like a default, because a body face set at 35px is just big body text where
 a display face set at 35px reads as an instrument.
@@ -23,6 +23,9 @@ a display face set at 35px reads as an instrument.
     label   the tracked micro-labels on cards (see widgets.caps)
     big     a readout you are meant to see from across the room
     huge    the one number a screen is about
+    cjk     a face that has the CJK block, for Japanese sub-labels and
+            any locale `i18n` grows into - silently absent where the
+            system has no such face, so test it with `fonts.has("cjk")`
 
 A project on a machine without Segoe, or one that simply wants a different
 pairing, passes its own mapping and every widget follows.
@@ -77,10 +80,23 @@ MONO_FACES = {
     "Courier New": ("cour.ttf",),
 }
 
+# A face that actually has the CJK block, for the `cjk` role. None of the
+# interface faces do, and ImGui draws nothing at all for a codepoint the
+# face is missing - so a Japanese sub-label without this is an empty gap.
+#
+# This used to be unaffordable: the atlas was built once at startup and a
+# Japanese range meant rasterising thousands of glyphs into a megabyte of
+# texture for the four characters a panel actually prints. imgui-bundle
+# 1.92 rasterises on demand, so registering the face costs a file handle
+# and each glyph is baked the first time it is drawn. Which is why this
+# role is always loaded and not an opt-in: it is free until used.
+CJK_FACES = ("msgothic.ttc", "YuGothR.ttc", "YuGothM.ttc", "meiryo.ttc",
+             "simsun.ttc", "malgun.ttf")
+
 
 def build_faces(ui="Segoe UI Variable", display="Bahnschrift",
                 mono="Cascadia Mono", base=17.5):
-    """Build the seven roles from three face choices.
+    """Build the eight roles from three face choices.
 
     This is what a settings panel drives: the user picks an interface face,
     a readouts face and a terminal face, and the sizes and the display
@@ -102,6 +118,9 @@ def build_faces(ui="Segoe UI Variable", display="Bahnschrift",
         "label": (disp, 13.5 * scale),     # the tracked uppercase labels
         "big":   (disp, 27.0 * scale),
         "huge":  (disp, 37.0 * scale),
+        # Kanji are full-width, so matched to the em they read a size
+        # larger than the Latin beside them; 0.78 lines the two up.
+        "cjk":   (CJK_FACES, base * 0.78),
     }
 
 
@@ -195,6 +214,14 @@ def available() -> bool:
 def roles():
     """Which roles actually loaded - what a diagnostics panel reports."""
     return sorted(_loaded)
+
+
+def has(role: str) -> bool:
+    """Whether a role loaded. `use` degrades silently either way; this is
+    for the caller that has to *reserve space* for text it may not be able
+    to draw - a header that leaves a gap for a Japanese sub-label on a
+    machine with no CJK face has made the gap the design."""
+    return role in _loaded
 
 
 def size(role: str, fallback: float = 17.0) -> float:

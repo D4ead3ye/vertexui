@@ -81,10 +81,13 @@ def _halftone(dl, x, y, w, h, col, step=6.0, fade=True):
 def _menacing(dl, x, y, s, col, thickness=None):
     """A menacing mark - the GO of Araki's goGOgo.
 
-    Drawn from strokes rather than typed: the glyph needs a Japanese
-    range in the font atlas, which is a megabyte of texture for one
-    decorative character, and at this size three lines read exactly the
-    same.
+    Drawn from strokes rather than typed. That began as a cost argument -
+    a Japanese range meant baking thousands of glyphs into a static atlas
+    for one decorative character - and 1.92's on-demand rasterising has
+    since made that free, which is why `fonts` now carries a `cjk` role
+    and YMO sets its sub-labels in real kanji. It stays drawn here because
+    this mark is *ink*: it wants the same weight and the same hand as the
+    focus lines it rises with, and a typeface would read as pasted on.
     """
     t = thickness if thickness is not None else max(1.2, s * 0.14)
     # the katakana KO: top bar turning down the right side, then a base

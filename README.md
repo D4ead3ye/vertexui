@@ -16,7 +16,7 @@ generated or drawn, so vendoring the folder is the whole install.
 | `theme` | colour/shape tokens, user presets on disk, accent derivation |
 | `anim` | frame-rate-independent easing for immediate-mode UI |
 | `sound` | synthesised interface cues — no audio files to ship |
-| `fonts` | real system typefaces, seven roles, in pairs that read |
+| `fonts` | real system typefaces, eight roles, in pairs that read |
 | `icons` | 16 vector icons drawn from primitives — no font, no atlas |
 | `widgets` | buttons, tabs, sliders, colour picker, badges — all animated |
 | `cards` | the panels an interface is built out of, in four styles |
@@ -56,9 +56,9 @@ typefaces, the same easing speed.
 
 A profile is all of that at once, named after the kind of work it is for.
 
-![Seven profiles](docs/profiles.png)
+![Eleven profiles](docs/profiles.png)
 
-**That image is one application.** Same four modules, same data, ten
+**That image is one application.** Same four modules, same data, eleven
 profiles — and it is in the repo as `tools/matrix.py` precisely so the
 claim can be checked rather than believed.
 
@@ -68,6 +68,7 @@ claim can be checked rather than believed.
 | `SBR` | tabbed | Araki western — parchment, brass, notched corners, golden ratio |
 | `Y2K` | tabbed | Win98 chrome, neon on pitch black, a CD-ROM spinner |
 | `AERO` | tabbed | glass over sky and grass, a water bubble, about 2007 |
+| `YMO` | tabbed | a 1979 sleeve as a synth panel — drawn letters, real kanji |
 | `INSTRUMENT` | dense | telemetry and profiling — amber on slate, square corners, 0.82 density |
 | `CONSOLE` | dense | logs and command output — phosphor, mono throughout, zero radius |
 | `MINIMAL` | stage | one job, one number — no navigation, 14px corners, slow and quiet |
@@ -167,18 +168,23 @@ graphics.sparkline(history, 200, 34)
 graphics.gauge(temp, 0, 300, label="NOZZLE", unit="C")
 graphics.plot({"cpu": cpu, "mem": mem}, fill=True)
 graphics.levels([left, right], peaks=[l_pk, r_pk])
+graphics.segments(rms, hot=0.8, peak=held, label="L")
 ```
 
-`sparkline` `plot` `bars` `histogram` `levels` `gauge` `ring` `heatmap`
-`scatter` `waveform` `timeline` `pips`. Pass `width=0` to fill the
-available width; everything advances the cursor, so these sit in a column
-with ordinary widgets and inside cards.
+`sparkline` `plot` `bars` `histogram` `levels` `segments` `gauge` `ring`
+`heatmap` `scatter` `waveform` `timeline` `pips`. Pass `width=0` to fill
+the available width; everything advances the cursor, so these sit in a
+column with ordinary widgets and inside cards.
 
-Two that are worth the pixels over a number: a sparkline's **head dot**,
-because without one the eye has to find the right-hand end before it can
-read "now"; and `levels` going hot near the top, because a meter that
+Three that are worth the pixels over a number: a sparkline's **head
+dot**, because without one the eye has to find the right-hand end before
+it can read "now"; `levels` going hot near the top, because a meter that
 stays one colour makes you read the number to find out whether it is
-clipping.
+clipping; and `segments`, which is the same reading in discrete blocks —
+a bar says "about two thirds", a ladder says "eleven of sixteen and the
+top two are red", which is why hardware meters never used a bar. Blocks
+past `hot` take the warning colour whether or not the value reaches
+them, so the ceiling is legible while the meter is still low.
 
 ## Forms and records
 
@@ -291,9 +297,9 @@ and not found, so the translation to-do list writes itself.
 
 ## Themes
 
-![Three themes](docs/showreel.gif)
+![Four themes](docs/showreel.gif)
 
-*Three themed applications, then one of them flipping through every theme
+*Four themed applications, then one of them flipping through every theme
 live.* `python tools/showreel.py`
 
 A profile is configuration — colours, shape, type, density, which layout.
@@ -305,14 +311,22 @@ So `skins` is a small set of optional painters a profile can carry:
 
 ```python
 Skin(plate=..., head=..., frame=..., tabs=..., hover_aura=..., press=...,
-     spinner=..., background=..., corner=..., press_depth=2.4,
-     press_snap=False)
+     label=..., spinner=..., background=..., corner=...,
+     press_depth=2.4, press_snap=False)
 ```
 
 `tabs` matters more than it sounds: navigation was the one piece of chrome
 no theme could touch, so all three looked identical there however
-different everything else was. They are inked index cards, chrome bevels
-and glass pills now.
+different everything else was. They are inked index cards, chrome bevels,
+glass pills and rack units now.
+
+`label` is the newest and the oddest: a short run of text drawn in the
+skin's own lettering rather than set in a face. It exists because YMO's
+identity *is* a typeface — a modular alphabet off a record sleeve — and
+no amount of font configuration produces one. Called with `dl=None` it
+measures instead of drawing, which the tab strip needs before it can
+place anything, since a drawn alphabet does not advance like the face it
+replaces. Return `None` and the stock text draws.
 
 Where a painter is set the widget calls it; where it is not, nothing
 changes and the widget draws as it always did. Every painter may return
@@ -340,8 +354,9 @@ what separates this from a western palette:
   would use a glow. A glow is a lighting effect and this interface has no
   lights in it; the page's own way of saying *look here* is to point every
   line at the thing. The ゴ marks are drawn from three strokes rather than
-  typed, since the glyph needs a Japanese range in the font atlas — a
-  megabyte of texture for one decorative character
+  typed — not for want of the glyph (see YMO below, which sets real
+  kanji) but because this mark is *ink* and wants the same hand as the
+  focus lines it rises with
 * **variable-weight borders** — heavy ink with a lighter brass companion
   inside it, which is how a panel border is actually inked. One even line
   was the single thing that made the first cut look flat
@@ -454,6 +469,53 @@ Buttons are glass pills that squash when pressed — this is what put the
 `press` painter to work, which had been declared on `Skin` since the
 start and never called by anything.
 
+### YMO Technodelic
+
+![YMO Technodelic](docs/ymo.png)
+
+A yellow band over a cobalt field, plum lettering with a warm offset
+shadow, wine glyph crates down the margins, an offset screen over all of
+it — the 1979 sleeve — crossed with what the record was actually made on:
+silkscreened legends on a coloured chassis, hairline rules, zero radius
+anywhere, block meters that run gold and then crimson. The palette is
+sampled off the sleeve rather than named from memory; the band really is
+`#F8BD03` and the field really is that cobalt.
+
+![The same code on two profiles](docs/ymo_contrast.png)
+
+Three things here are not a palette swap.
+
+**It draws its own alphabet.** The sleeve's lettering is modular —
+straight strokes, every bowl an octagon cut at 45°, and a Y that is a 4.
+`themes.ymo.type_` renders it from a stroke table, and the theme hangs it
+on the new `skins.Skin.label` painter, so tab captions and card titles
+are *lettered* rather than typed. The 4-shaped Y is deliberate and is the
+one glyph that gives the sleeve away.
+
+**The sub-labels are real kanji.** Japanese hardware labels a control
+twice, so 状態 sits beside STATUS and 記憶 beside MEMORY. That used to be
+unaffordable — a Japanese range meant baking thousands of glyphs into the
+atlas at startup for the four characters a panel prints, which is why
+SBR's ゴ marks are drawn from strokes. 1.92 rasterises on demand, so
+`fonts` now always loads a `cjk` role and it costs a file handle until a
+glyph is actually drawn. Where the machine has no CJK face,
+`fonts.has("cjk")` is False and the sub-label is simply absent.
+
+**The ground does not move.** The other three themes all animate their
+background. This one is a printed object and print holds still; the whole
+motion budget goes to the controls and to the spinner, which is the
+sleeve's head of flex leads. At rest each lead curls; spun up, the curl
+is pulled out of them until they stand straight off the hub and the
+stripped tips smear into a ring — one term scaled by the heat, which is
+the actual physics of the picture rather than a second mode.
+
+![Voices](docs/ymo_voices.png)
+
+The example is a step sequencer, because a sequencer is the one
+instrument that is almost entirely front panel: a key matrix, a lamp that
+walks across it, and meters. `examples/technodelic.py --profile noir` is
+the identical code as a flat dark panel.
+
 ## Switching themes at runtime
 
 A theme is a palette, a shape language, a density, a motion rate **and a
@@ -475,15 +537,16 @@ The atlas is cleared before reloading. Without that every swap adds
 another set of faces to it and a user playing with a theme picker grows
 the texture without limit; cleared and re-added it stays at exactly the
 number of roles, which is what the font-swap test checks. Thirty-one
-profile swaps across ten profiles run clean.
+profile swaps across eleven profiles run clean.
 
 A toggle for it is one call. Each swatch is painted from *its own*
 theme - its ground, with its accent across the lower half - so the row
 previews the looks instead of listing names:
 
 ```python
-looks = [my_profile, themes.SBR, themes.Y2K, themes.AERO]
-pick = inputs.swatches("look", looks, current, names=["Mine", "SBR", "Y2K", "Aero"])
+looks = [my_profile, themes.SBR, themes.Y2K, themes.AERO, themes.YMO]
+pick = inputs.swatches("look", looks, current,
+                       names=["Mine", "SBR", "Y2K", "Aero", "YMO"])
 if pick != current:
     pending = pick          # swap at the top of the next frame, not mid-draw:
                             # app.profile = looks[pending]; app.profile.apply(app.app_id)
@@ -538,6 +601,7 @@ is already going adds to the target instead of restarting it.
 | Steel Ball Run | a quiet green ball, a few focus lines | dense impact lines, afterimages smeared round its axis, and menacing marks |
 | Y2K Cyber | two narrow rainbow arcs on dark silver | the lobes smear into one continuous ring, the rim blurs and the laser blinks faster |
 | Frutiger Aero | a round bubble | a droplet deforming on two axes, shedding twice the air |
+| YMO Technodelic | leads curling off a hub | the curl pulls straight, the tips smear into a ring, the block meter scans faster |
 
 Two things this needed under the hood.
 
@@ -1091,6 +1155,7 @@ that a thing runs and two opposed ones show that it is actually modular:
 | `examples/steelball.py` | a themed race board; `--profile noir` strips it back to stock |
 | `examples/cyberdeck.py` | a Y2K system monitor built out of floating windows |
 | `examples/habitat.py` | a Frutiger Aero habitat monitor — glass over water |
+| `examples/technodelic.py` | a YMO step sequencer — key matrix, lamps, block meters |
 
 ![Ledger and intake](docs/ledger.png)
 

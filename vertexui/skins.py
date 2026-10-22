@@ -46,6 +46,14 @@ class Skin:
         one (x, width) per tab, `hots` one 0..1 hover amount. Labels stay
         with the widget - a skin owns the chrome, not the text. Return
         True if you drew it.
+    label(dl, x, y, h, text, col, t, kind) -> float | None
+        A short run of text in the skin's own lettering, for a theme whose
+        identity is a typeface it has to draw - a stencil, a dot-matrix
+        readout, a sleeve's modular alphabet. Returns the advance width.
+        Called with `dl=None` to measure without drawing; return None from
+        either call to let the stock text draw instead. Only short runs go
+        through here: captions, titles, readouts - never body copy, which
+        wants a real face with real kerning.
     spinner(dl, cx, cy, r, t, phase)
         The busy indicator. `phase` is seconds, already running.
     background(dl, x, y, w, h, t, now)
@@ -60,6 +68,7 @@ class Skin:
     frame: object = None
     hover_aura: object = None
     press: object = None
+    label: object = None
     spinner: object = None
     background: object = None
     tabs: object = None

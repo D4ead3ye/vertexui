@@ -5,7 +5,7 @@ Each piece is usable on its own:
     theme     colour/shape tokens, user presets, accent derivation
     anim      frame-rate-independent easing for immediate-mode UI
     sound     synthesised interface cues, no audio files to ship
-    fonts     real system typefaces, seven roles, in pairs that read
+    fonts     real system typefaces, eight roles, in pairs that read
     icons     vector icons drawn from primitives - no font, no atlas
     widgets   buttons, tabs, sliders, colour picker, badges - all animated
     cards     the panels an interface is built out of, in four styles
@@ -66,7 +66,7 @@ __all__ = ["anim", "backdrop", "cards", "compose", "dialogs", "effects",
            "end_frame",
            "App", "Module"]
 
-__version__ = "1.9.3"
+__version__ = "1.10.0"
 
 _LAZY = ("toasts", "effects", "backdrop", "graphics")
 

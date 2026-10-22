@@ -499,3 +499,89 @@ def pips(total, on, size=7.0, gap=5.0, colour=None):
         dl.add_circle_filled(ImVec2(x, o.y + size * 0.6), size * 0.5,
                              _col(c if lit else t.text_mute, 1.0 if lit else 0.35))
     imgui.dummy(ImVec2(max(1.0, total * (size + gap)), size * 1.2))
+
+
+def segments(value, lo=0.0, hi=1.0, count=16, block=6.0, gap=2.0, width=0.0,
+             height=0.0, vertical=False, colour=None, hot=0.78,
+             hot_colour=None, peak=None, label="", dim=0.16):
+    """A block meter - discrete LEDs, not a continuous bar.
+
+    A bar says "about two thirds". A ladder of lit blocks says "eleven of
+    sixteen, and the top two are red", which is the reading a level meter
+    on a piece of hardware is for and the reason the hardware never used a
+    bar. The blocks past `hot` take `hot_colour` whether or not the value
+    reaches them, so the ceiling is legible while the meter is still low -
+    an overload mark you only see once you have overloaded is no warning.
+
+        graphics.segments(rms, hot=0.8, peak=held, label="L")
+        graphics.segments(load, count=24, vertical=True, height=120)
+
+    A fixed `count` takes its natural width unless one is given, because
+    sixteen LEDs stretched across a wide card are not a meter any more -
+    they are sixteen lamps. `count=0` instead fills the space with as many
+    blocks as fit, which is what a load strip along a header wants.
+    `peak` draws one held block at that value, lit when the meter itself
+    has fallen away from it.
+    """
+    t = theme_mod.current()
+    dl = imgui.get_window_draw_list()
+    o = imgui.get_cursor_screen_pos()
+    base = colour if colour is not None else t.accent
+    over = hot_colour if hot_colour is not None else t.danger
+
+    n = int(count)
+    if vertical:
+        thick = width if width > 0 else 12.0
+        span = height if height > 0 else (n * (block + gap) - gap if n
+                                          else 90.0)
+    else:
+        thick = height if height > 0 else 14.0
+        span = width if width > 0 else (n * (block + gap) - gap if n
+                                        else _avail(0.0))
+    if not n:
+        n = max(3, int((span + gap) // (block + gap)))
+    step = (span - n * block) / max(1, n - 1) + block if n > 1 else span
+
+    frac = 0.0 if hi - lo < 1e-9 else (float(value) - lo) / (hi - lo)
+    frac = max(0.0, min(1.0, frac))
+    lit = frac * n
+    peak_i = None if peak is None else min(n - 1, max(0, int(
+        (max(0.0, min(1.0, (float(peak) - lo) / max(1e-9, hi - lo))) * n) - 1)))
+
+    cap = ""
+    if label:
+        with fonts.use("label"):
+            cap = label
+            cw = imgui.calc_text_size(cap).x + 6.0
+    else:
+        cw = 0.0
+
+    for i in range(n):
+        warm = (i + 0.5) / n >= hot
+        col = over if warm else base
+        on = i < int(lit)
+        # the block the value lands in fades, so the meter moves smoothly
+        # between whole LEDs instead of stepping - which is what the slow
+        # ballistics of a real meter look like
+        edge = max(0.0, min(1.0, lit - int(lit))) if i == int(lit) else 0.0
+        a = 1.0 if on else (0.85 * edge if edge > 0 else dim)
+        if peak_i is not None and i == peak_i and not on:
+            col, a = (over if warm else base), 0.9
+        if vertical:
+            y1 = o.y + span - i * step
+            dl.add_rect_filled(ImVec2(o.x + cw, y1 - block),
+                               ImVec2(o.x + cw + thick, y1), _col(col, a), 0.0)
+        else:
+            x0 = o.x + cw + i * step
+            dl.add_rect_filled(ImVec2(x0, o.y), ImVec2(x0 + block, o.y + thick),
+                               _col(col, a), 0.0)
+    if cap:
+        with fonts.use("label"):
+            ty = o.y + (span if vertical else thick) * 0.5 \
+                - imgui.calc_text_size(cap).y * 0.5
+            dl.add_text(ImVec2(o.x, ty), _col(t.text_dim), cap)
+
+    if vertical:
+        imgui.dummy(ImVec2(cw + thick, span))
+    else:
+        imgui.dummy(ImVec2(cw + span, thick))

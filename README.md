@@ -477,6 +477,22 @@ the texture without limit; cleared and re-added it stays at exactly the
 number of roles, which is what the font-swap test checks. Thirty-one
 profile swaps across ten profiles run clean.
 
+A toggle for it is one call. Each swatch is painted from *its own*
+theme - its ground, with its accent across the lower half - so the row
+previews the looks instead of listing names:
+
+```python
+looks = [my_profile, themes.SBR, themes.Y2K, themes.AERO]
+pick = inputs.swatches("look", looks, current, names=["Mine", "SBR", "Y2K", "Aero"])
+if pick != current:
+    pending = pick          # swap at the top of the next frame, not mid-draw:
+                            # app.profile = looks[pending]; app.profile.apply(app.app_id)
+```
+
+An application that wants to keep its own shape under every theme -
+its rail, its single column - hands the theme a layout:
+`themes.SBR.variant(layout=layouts.Rail(width=62))`.
+
 ## Drawing helpers
 
 `paint` exists because the first two themes each grew a private copy of

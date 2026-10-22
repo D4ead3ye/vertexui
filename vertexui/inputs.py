@@ -7,6 +7,7 @@ project that had a form wrote this layer itself.
     changed, name = inputs.text_input("name", name, hint="Supplier")
     only_open = inputs.switch("Open orders only", only_open)
     view = inputs.segmented("view", ["Day", "Week", "Month"], view)
+    look = inputs.swatches("look", [themes.SBR, themes.Y2K, themes.AERO], look)
 
 Returns follow ImGui's shape for the ones that wrap it - `(changed,
 value)` - and plain values for the ones drawn here. Every control takes a
@@ -21,7 +22,7 @@ from . import anim, fonts, icons, skins
 from . import theme as theme_mod
 
 __all__ = ["field_label", "text_input", "search_input", "switch",
-           "segmented", "chip", "delta", "stepper"]
+           "segmented", "swatches", "chip", "delta", "stepper"]
 
 
 def _focus_ring(t, active):
@@ -237,6 +238,58 @@ def segmented(key, options, index, width=0.0, height=30.0, equal=True):
                                o.y + (h - ts.y) * 0.5), theme_mod.u32(col), label)
     imgui.set_cursor_screen_pos(ImVec2(o.x, o.y))
     imgui.dummy(ImVec2(total, h))
+    return out
+
+
+def swatches(key, choices, index, size=22.0, gap=7.0, names=None) -> int:
+    """Pick one of a few profiles (or themes), shown as what you would get.
+
+    Each swatch is painted from *its own* theme rather than the current one
+    - its ground, with its accent across the lower half - so a theme toggle
+    previews the look instead of listing names. `choices` are `Profile`s or
+    `Theme`s; `names` overrides the hover label. Returns the chosen index,
+    which is `index` until one is clicked.
+    """
+    t = theme_mod.current()
+    dl = imgui.get_window_draw_list()
+    d = theme_mod.px(size, t)
+    g = theme_mod.px(gap, t)
+    o = imgui.get_cursor_screen_pos()
+    out = index
+    from . import sound, widgets
+    for i, choice in enumerate(choices):
+        th = getattr(choice, "theme", choice)
+        label = (names[i] if names and i < len(names) else None) or \
+            getattr(choice, "name", "") or f"{i + 1}"
+        x = o.x + i * (d + g)
+        imgui.set_cursor_screen_pos(ImVec2(x, o.y))
+        imgui.invisible_button(f"##sw{key}{i}", ImVec2(d, d))
+        hovered = imgui.is_item_hovered()
+        widgets.hover_tick(f"sw:{key}:{i}", hovered)
+        if imgui.is_item_clicked() and i != index:
+            out = i
+            sound.play("click")
+        if hovered:
+            imgui.set_mouse_cursor(imgui.MouseCursor_.hand)
+            imgui.set_tooltip(label)
+        grow = anim.to(f"sw:{key}:{i}:h", 1.0 if hovered else 0.0, 16.0)
+        sel = anim.to(f"sw:{key}:{i}:s", 1.0 if i == index else 0.0, 14.0)
+        c = ImVec2(x + d * 0.5, o.y + d * 0.5)
+        r = d * 0.5 * (0.80 + 0.08 * grow) - sel * theme_mod.px(1.5, t)
+        dl.add_circle_filled(c, r, theme_mod.u32(th.bg), 32)
+        # the accent across the lower half, as a filled half-disc
+        dl.path_clear()
+        dl.path_arc_to(c, r, 0.0, 3.14159265, 16)
+        dl.path_fill_convex(theme_mod.u32(th.accent))
+        dl.add_circle_filled(ImVec2(c.x - r * 0.32, c.y - r * 0.30), r * 0.22,
+                             theme_mod.u32(th.surface), 16)
+        dl.add_circle(c, r, theme_mod.u32(th.border, 0.9), 32, 1.0)
+        if sel > 0.01:
+            dl.add_circle(c, d * 0.5 + theme_mod.px(1.0, t) * sel,
+                          theme_mod.u32(t.accent, sel), 32,
+                          max(1.0, theme_mod.px(2.0, t)) * sel)
+    imgui.set_cursor_screen_pos(o)
+    imgui.dummy(ImVec2(len(choices) * d + max(0, len(choices) - 1) * g, d))
     return out
 
 

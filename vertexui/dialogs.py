@@ -22,7 +22,7 @@ every project ended up with a little registry.
 
 import time
 
-from imgui_bundle import ImVec2, imgui
+from imgui_bundle import ImVec2, ImVec4, imgui
 
 from . import anim, fonts, icons
 from . import theme as theme_mod
@@ -64,7 +64,8 @@ def payload():
 
 def scrim(amount=1.0, rounding=0.0):
     """Dim the whole window. Drawn on the foreground list, so it covers
-    content without needing to be drawn after it."""
+    content without needing to be drawn after it - and covers every popup
+    and modal too, which is why `modal` does not use it (see `_modal_dim`)."""
     if amount <= 0.001:
         return
     t = theme_mod.current()
@@ -72,6 +73,22 @@ def scrim(amount=1.0, rounding=0.0):
     imgui.get_foreground_draw_list().add_rect_filled(
         ImVec2(0, 0), ImVec2(io.display_size.x, io.display_size.y),
         theme_mod.u32(theme_mod.sink(t.bg, 0.6, t), 0.62 * amount), rounding)
+
+
+def _modal_dim(t):
+    """The dim behind a modal, as ImGui's own modal background.
+
+    ImGui draws that just beneath the modal window, and fades it in by
+    itself. The foreground-list `scrim` this replaced sat above the box as
+    well, so every dialog came out greyed by its own veil: the fields and
+    buttons at ~40% contrast, worst on the light themes.
+    """
+    c = theme_mod.sink(t.bg, 0.6, t)
+    try:
+        imgui.get_style().set_color_(int(imgui.Col_.modal_window_dim_bg.value),
+                                     ImVec4(c.x, c.y, c.z, 0.62))
+    except Exception:
+        pass
 
 
 def draw():
@@ -118,8 +135,7 @@ class modal:
     def __enter__(self):
         t = theme_mod.current()
         self._t = t
-        grow = anim.ease_out(min(1.0, (time.time() - _opened_at) / 0.16))
-        scrim(grow)
+        _modal_dim(t)
         io = imgui.get_io()
         w = theme_mod.px(self.width, t)
         imgui.set_next_window_size(ImVec2(w, 0))

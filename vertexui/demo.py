@@ -476,6 +476,9 @@ class Demo:
             imgui.dummy(ImVec2(0, 8))
             f["view"] = inputs.segmented("d:view", ["Day", "Week", "Month"],
                                          f["view"])
+            imgui.same_line(0, 14)
+            looks = [profiles.ALL[n] for n in profiles.ORDER if n in profiles.ALL]
+            f["look"] = inputs.swatches("d:look", looks, f.get("look", 0))
             imgui.dummy(ImVec2(0, 8))
             inputs.field_label("Crates", "stepper")
             f["qty"] = inputs.stepper("d:qty", f["qty"], lo=0, hi=20)

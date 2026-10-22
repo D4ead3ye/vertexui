@@ -14,13 +14,14 @@ built-in profiles, and `profiles.get("steel-ball-run")` finds them.
 
 from .. import profiles as _profiles
 from .aero import AERO_PROFILE as AERO
+from .ena import ENA
 from .sbr import SBR
 from .y2k import Y2K
 from .ymo import YMO
 
-__all__ = ["AERO", "SBR", "Y2K", "YMO", "ALL", "names", "get"]
+__all__ = ["AERO", "ENA", "SBR", "Y2K", "YMO", "ALL", "names", "get"]
 
-ALL = {t.name: t for t in (SBR, Y2K, AERO, YMO)}
+ALL = {t.name: t for t in (SBR, Y2K, AERO, YMO, ENA)}
 
 
 def names():

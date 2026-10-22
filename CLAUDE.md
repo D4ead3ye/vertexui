@@ -16,7 +16,7 @@ that imply about density, chrome, motion and type? Build from that answer.
 A tool gets a tab strip because its views are equal-weight and few, not
 because tab strips are what the toolkit has.
 
-If none of the eleven profiles suits the domain, write one. A profile is
+If none of the twelve profiles suits the domain, write one. A profile is
 about twenty lines.
 
 ## 2. Visual and functional identity follows the domain
@@ -74,9 +74,9 @@ Current pairs:
   `--profile`, including a headless corner HUD under `--hud`
 * `examples/minimal.py` against `examples/ambience.py`
 
-`docs/profiles.png` is the falsifiable version of the claim: eleven
-captures of one application under eleven profiles. If they ever start
-looking like one program in eleven colours, this document is wrong and
+`docs/profiles.png` is the falsifiable version of the claim: twelve
+captures of one application under twelve profiles. If they ever start
+looking like one program in twelve colours, this document is wrong and
 the code needs fixing, not the README.
 
 ## 5. Promote what gets written twice
@@ -155,6 +155,9 @@ is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
   gets there by construction and costs nothing.
 * A card owns its own `ImDrawListSplitter`, which is what makes nesting
   legal. Do not go back to `draw_list.channels_split`.
+* A receding grid converges because each row's half-width is a function
+  of its own depth. Spacing the columns evenly and scaling the whole row
+  instead gives a staircase, which is what the ENA floor did first.
 * `table.row_begin` tints a row out to the window edge, because there is
   no content-region accessor here. A table therefore belongs in a
   full-width card; in a half-width one it paints over its neighbour.
@@ -169,7 +172,7 @@ is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
 
 ```bash
 python tools/smoke.py          # every screen, every state, every layout
-python tools/showreel.py       # re-record the four-theme clip
+python tools/showreel.py       # re-record the five-theme clip
                                # (it takes over the mouse; --no-pointer opts out,
                                #  at the cost of hover states not lighting up)
 python tools/matrix.py tile    # regenerate docs/profiles.png

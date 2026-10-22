@@ -56,9 +56,9 @@ typefaces, the same easing speed.
 
 A profile is all of that at once, named after the kind of work it is for.
 
-![Eleven profiles](docs/profiles.png)
+![Twelve profiles](docs/profiles.png)
 
-**That image is one application.** Same four modules, same data, eleven
+**That image is one application.** Same four modules, same data, twelve
 profiles — and it is in the repo as `tools/matrix.py` precisely so the
 claim can be checked rather than believed.
 
@@ -69,6 +69,7 @@ claim can be checked rather than believed.
 | `Y2K` | tabbed | Win98 chrome, neon on pitch black, a CD-ROM spinner |
 | `AERO` | tabbed | glass over sky and grass, a water bubble, about 2007 |
 | `YMO` | tabbed | a 1979 sleeve as a synth panel — drawn letters, real kanji |
+| `ENA` | tabbed | a PS1 outworld — chess floors, 12fps stutter, 1-bit hover |
 | `INSTRUMENT` | dense | telemetry and profiling — amber on slate, square corners, 0.82 density |
 | `CONSOLE` | dense | logs and command output — phosphor, mono throughout, zero radius |
 | `MINIMAL` | stage | one job, one number — no navigation, 14px corners, slow and quiet |
@@ -297,9 +298,9 @@ and not found, so the translation to-do list writes itself.
 
 ## Themes
 
-![Four themes](docs/showreel.gif)
+![Five themes](docs/showreel.gif)
 
-*Four themed applications, then one of them flipping through every theme
+*Five themed applications, then one of them flipping through every theme
 live.* `python tools/showreel.py`
 
 A profile is configuration — colours, shape, type, density, which layout.
@@ -516,6 +517,56 @@ instrument that is almost entirely front panel: a key matrix, a lamp that
 walks across it, and meters. `examples/technodelic.py --profile noir` is
 the identical code as a flat dark panel.
 
+### ENA World
+
+![ENA World](docs/ena.png)
+
+The environment, not the character: deep dreamcore indigo, low-poly
+violet marble, uncanny slate, and two accents that do not belong in the
+same room — magenta corruption and sky cyan. Zero radius, 2px
+absolute-black borders, and 5px offset shadows with no blur in them,
+because a 1998 renderer had none to give.
+
+![The same code on two profiles](docs/ena_contrast.png)
+
+**Nothing is square on all four corners.** Panels take an asymmetric
+polygon — a large chamfer at one corner, a small one diagonally opposite
+— and one hard diagonal cuts across the body. Surrealist architecture is
+buildings that *almost* obey; a panel that is merely rectangular reads as
+software, one cut on a slant reads as a place. The cuts are deliberately
+not mirrored, because mirrored ones come back round to looking like a
+frame.
+
+**Everything stutters at 12fps.** The floor scrolls, the monolith turns
+and the static re-seeds on a quantised clock while the rest of the
+toolkit eases at whatever the profile says. That is the opposite of YMO,
+whose ground does not move at all, and of Aero, which never stops easing:
+here motion exists but is not allowed to be smooth. The stutter is the
+rotation itself, not a filter over a smooth one — a faster spin covers
+more angle per step, so the monolith visibly comes apart into poses
+instead of blurring.
+
+**Hover is a 1-bit inversion.** `amount` arrives eased and is
+thresholded away, because this interface has no intermediate states: the
+control's ghost jumps three pixels in magenta, a white keyline lands over
+it, corruption bars tear out of the edge, and it snaps back.
+
+The spinner is a real octahedron — rotated in three dimensions,
+back-face culled, depth-sorted, flat-shaded between cyan and magenta by
+face normal — stepped at 12fps and shedding the frames it has already
+been as fragments snapped to a 3px grid. The grid is what makes them
+read as pixels rather than as small squares.
+
+![Signal](docs/ena_signal.png)
+
+The example is a survey station, because the one thing this environment
+is about is being measured by someone who cannot quite trust the
+measurement. Every reading has a confidence that decays, the region you
+are looking at drifts *because* you are looking at it, and the log is
+mostly the instrument complaining. The region names are canon where
+there is canon — Red Outworld, the Hub, the Lonely Door, Uncanny
+Streets, the Lost Village, the Core.
+
 ## Switching themes at runtime
 
 A theme is a palette, a shape language, a density, a motion rate **and a
@@ -537,7 +588,7 @@ The atlas is cleared before reloading. Without that every swap adds
 another set of faces to it and a user playing with a theme picker grows
 the texture without limit; cleared and re-added it stays at exactly the
 number of roles, which is what the font-swap test checks. Thirty-one
-profile swaps across eleven profiles run clean.
+profile swaps across twelve profiles run clean.
 
 A toggle for it is one call. Each swatch is painted from *its own*
 theme - its ground, with its accent across the lower half - so the row
@@ -602,6 +653,7 @@ is already going adds to the target instead of restarting it.
 | Y2K Cyber | two narrow rainbow arcs on dark silver | the lobes smear into one continuous ring, the rim blurs and the laser blinks faster |
 | Frutiger Aero | a round bubble | a droplet deforming on two axes, shedding twice the air |
 | YMO Technodelic | leads curling off a hub | the curl pulls straight, the tips smear into a ring, the block meter scans faster |
+| ENA World | a low-poly solid stepping at 12fps | more angle per step, so it comes apart into poses, shedding pixel fragments sideways |
 
 Two things this needed under the hood.
 
@@ -1156,6 +1208,7 @@ that a thing runs and two opposed ones show that it is actually modular:
 | `examples/cyberdeck.py` | a Y2K system monitor built out of floating windows |
 | `examples/habitat.py` | a Frutiger Aero habitat monitor — glass over water |
 | `examples/technodelic.py` | a YMO step sequencer — key matrix, lamps, block meters |
+| `examples/outworld.py` | an ENA survey station — regions that drift while measured |
 
 ![Ledger and intake](docs/ledger.png)
 

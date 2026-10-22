@@ -155,9 +155,17 @@ is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
   gets there by construction and costs nothing.
 * A card owns its own `ImDrawListSplitter`, which is what makes nesting
   legal. Do not go back to `draw_list.channels_split`.
-* A receding grid converges because each row's half-width is a function
-  of its own depth. Spacing the columns evenly and scaling the whole row
-  instead gives a staircase, which is what the ENA floor did first.
+* A perspective grid running to a vanishing point is synthwave, and it
+  will drag a theme toward cyberpunk whatever its palette is. ENA's
+  first cut had one, plus neon magenta on indigo, and read as Outrun
+  rather than as the washed webcore it was meant to be. Where a receding
+  grid *is* wanted, it converges because each row's half-width comes
+  from its own depth - spacing the columns evenly and scaling the whole
+  row gives a staircase.
+* An ordered dither needs four threshold levels across a seam before it
+  stops reading as a line and starts reading as a gradient. Per-pixel is
+  not an option from Python: band the gradient and dither only the
+  seams.
 * `table.row_begin` tints a row out to the window edge, because there is
   no content-region accessor here. A table therefore belongs in a
   full-width card; in a half-width one it paints over its neighbour.

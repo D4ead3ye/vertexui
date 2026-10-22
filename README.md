@@ -69,7 +69,7 @@ claim can be checked rather than believed.
 | `Y2K` | tabbed | Win98 chrome, neon on pitch black, a CD-ROM spinner |
 | `AERO` | tabbed | glass over sky and grass, a water bubble, about 2007 |
 | `YMO` | tabbed | a 1979 sleeve as a synth panel — drawn letters, real kanji |
-| `ENA` | tabbed | a PS1 outworld — chess floors, 12fps stutter, 1-bit hover |
+| `ENA` | tabbed | webcore — a dithered chalk dreamscape with Win95 zinc in it |
 | `INSTRUMENT` | dense | telemetry and profiling — amber on slate, square corners, 0.82 density |
 | `CONSOLE` | dense | logs and command output — phosphor, mono throughout, zero radius |
 | `MINIMAL` | stage | one job, one number — no navigation, 14px corners, slow and quiet |
@@ -521,51 +521,60 @@ the identical code as a flat dark panel.
 
 ![ENA World](docs/ena.png)
 
-The environment, not the character: deep dreamcore indigo, low-poly
-violet marble, uncanny slate, and two accents that do not belong in the
-same room — magenta corruption and sky cyan. Zero radius, 2px
-absolute-black borders, and 5px offset shadows with no blur in them,
-because a 1998 renderer had none to give.
+The environment, not the character, and the *animations* rather than the
+game. That means pale and chalky, not neon: a bone-coloured void,
+dithered skies, flat untextured low-poly shapes with black outlines, and
+grey system furniture from 1995 standing in the middle of it as though
+nobody thought it odd.
+
+This is the toolkit's third light theme and the only grey one. It is
+also the only place the Win95 four-tone bevel is drawn properly — white,
+face, shadow, black — which is what *zinc* means and is a different
+object from Y2K's chrome: that is a dark, loud, gradient-lit 1999, this
+is a flat, quiet, dusty 1995 left out in the sun.
 
 ![The same code on two profiles](docs/ena_contrast.png)
 
-**Nothing is square on all four corners.** Panels take an asymmetric
-polygon — a large chamfer at one corner, a small one diagonally opposite
-— and one hard diagonal cuts across the body. Surrealist architecture is
-buildings that *almost* obey; a panel that is merely rectangular reads as
-software, one cut on a slant reads as a place. The cuts are deliberately
-not mirrored, because mirrored ones come back round to looking like a
-frame.
+**Everything is dithered, nothing is smooth.** Gradients are hard bands
+with an ordered checker crossing each seam in four stages, because a
+256-colour display could not do better and the look is built out of that
+limit. One dithered row reads as a line and two read as a line with a
+shadow; it takes four before the eye gives up and calls it a gradient. A
+true per-pixel dither over the sky is some fifty thousand rectangles a
+frame, which Python will not do, so the bands are few and only the seams
+are dithered — at this cell size it looks the same.
 
-**Everything stutters at 12fps.** The floor scrolls, the monolith turns
-and the static re-seeds on a quantised clock while the rest of the
-toolkit eases at whatever the profile says. That is the opposite of YMO,
-whose ground does not move at all, and of Aero, which never stops easing:
-here motion exists but is not allowed to be smooth. The stutter is the
-rotation itself, not a filter over a smooth one — a faster spin covers
-more angle per step, so the monolith visibly comes apart into poses
-instead of blurring.
+**Panels are group boxes, not windows.** The title sits in a gap broken
+out of the top rule — the Win95 GroupBox — so a screen of panels reads as
+a control panel rather than as a desktop, which Y2K's title bars already
+make. One corner is still cut on a slant, and never mirrored, because a
+matching pair comes back round to looking like a deliberate frame and the
+architecture in this world should look like it *almost* obeys.
 
-**Hover is a 1-bit inversion.** `amount` arrives eased and is
-thresholded away, because this interface has no intermediate states: the
-control's ghost jumps three pixels in magenta, a white keyline lands over
-it, corruption bars tear out of the edge, and it snaps back.
+**Hover is a dotted focus rectangle.** Marching 1px dots and a navy
+wash, thresholded so there is no in-between state — a glow would be a
+lighting effect in a picture that has no lights in it. Press flips the
+bevel and shifts the face a pixel down and right, which is the whole
+reason a 1995 button felt like it travelled.
 
-The spinner is a real octahedron — rotated in three dimensions,
-back-face culled, depth-sorted, flat-shaded between cyan and magenta by
-face normal — stepped at 12fps and shedding the frames it has already
-been as fragments snapped to a 3px grid. The grid is what makes them
-read as pixels rather than as small squares.
+**The spinner is an hourglass**, flat-shaded in chalk with a black
+outline on every edge and no light source anywhere — which is what an
+untextured 1995 polygon actually looked like, and is why shading it by a
+normal would have been wrong. It steps at 12fps and sheds the poses it
+has already been as fragments snapped to a 3px grid.
 
 ![Signal](docs/ena_signal.png)
 
-The example is a survey station, because the one thing this environment
-is about is being measured by someone who cannot quite trust the
-measurement. Every reading has a confidence that decays, the region you
-are looking at drifts *because* you are looking at it, and the log is
-mostly the instrument complaining. The region names are canon where
-there is canon — Red Outworld, the Hub, the Lonely Door, Uncanny
-Streets, the Lost Village, the Core.
+The floor does not recede to a vanishing point. A perspective grid
+running to one is synthwave — a different decade and a much louder mood
+— and it was the single thing that made the first version of this theme
+read as cyberpunk rather than as webcore.
+
+The example is a survey station, because what this environment is about
+is being measured by someone who cannot quite trust the measurement:
+every reading has a confidence that decays, the region you are looking
+at drifts *because* you are looking at it, and the log is mostly the
+instrument complaining. Region names are canon where there is canon.
 
 ## Switching themes at runtime
 
@@ -653,7 +662,7 @@ is already going adds to the target instead of restarting it.
 | Y2K Cyber | two narrow rainbow arcs on dark silver | the lobes smear into one continuous ring, the rim blurs and the laser blinks faster |
 | Frutiger Aero | a round bubble | a droplet deforming on two axes, shedding twice the air |
 | YMO Technodelic | leads curling off a hub | the curl pulls straight, the tips smear into a ring, the block meter scans faster |
-| ENA World | a low-poly solid stepping at 12fps | more angle per step, so it comes apart into poses, shedding pixel fragments sideways |
+| ENA World | a chalk hourglass stepping at 12fps | more angle per step, so it comes apart into poses, shedding pixel fragments sideways |
 
 Two things this needed under the hood.
 

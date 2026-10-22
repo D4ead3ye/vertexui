@@ -149,7 +149,7 @@ class Survey(compose.Module):
             if fonts.has("cjk"):
                 imgui.same_line(0, 12)
                 with fonts.use("cjk"):
-                    imgui.text_colored(_pal("cyan", t.info), kana)
+                    imgui.text_colored(_pal("mint", t.info), kana)
             imgui.dummy(ImVec2(0, 8))
             inputs.field_label("Stability", "drifts while observed")
             graphics.segments(s, count=24, hot=0.0, block=7.0,
@@ -180,7 +180,7 @@ class Survey(compose.Module):
                 imgui.dummy(ImVec2(0, 96))
                 imgui.text_colored(t.text_mute, "instrument idle")
             imgui.dummy(ImVec2(0, 8))
-            cy_ = _pal("cyan", t.info)
+            cy_ = _pal("mint", t.info)
             graphics.segments(self.noise[-1], count=16, hot=0.75, label="N",
                               colour=cy_)
             graphics.segments(self.turbulence[-1], count=16, hot=0.75,
@@ -211,7 +211,7 @@ class Survey(compose.Module):
                         width=half) as c:
             graphics.waveform([math.sin(x * 0.5) * self.noise[-1] * 4
                                for x in range(64)], c.width, 92,
-                              colour=_pal("magenta", t.accent))
+                              colour=_pal("rose", t.accent))
             imgui.dummy(ImVec2(0, 6))
             _, self.note = inputs.text_input("note", self.note,
                                              hint="log an observation",

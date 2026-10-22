@@ -1,36 +1,40 @@
-"""ENA World - a PS1 outworld: chess-grid floors and reality corruption.
+"""ENA World - webcore: a washed dreamscape with Win95 zinc sitting in it.
 
-The environment, not the character. Deep dreamcore indigo, low-poly
-violet marble, uncanny slate, and two accents that do not belong in the
-same room: magenta corruption and sky cyan. Zero radius anywhere, 2px
-absolute-black borders, and hard 5px offset shadows with no blur in them,
-because a 1998 renderer had no blur to give.
+The environment, not the character, and the *animations* rather than the
+game. That means pale and chalky rather than neon: a bone-coloured void,
+dithered skies, flat untextured low-poly shapes with black outlines, and
+grey system furniture from 1995 standing in the middle of it as though
+nobody thought it odd.
 
     from vertexui import themes
     app = compose.App(profile=themes.ENA)
 
-Three things carry the identity:
+This is the toolkit's third light theme and the only grey one. It is also
+the one place the Win95 four-tone bevel is drawn properly - white, face,
+shadow, black - which is what `zinc` means and is a different object from
+Y2K's chrome: that is a dark, loud, gradient-lit 1999, this is a flat,
+quiet, dusty 1995 that has been left out in the sun.
 
-**Nothing is square on all four corners.** Panels take an asymmetric
-polygon - a large chamfer at one corner, a small one diagonally opposite
-- and a hard diagonal division cuts across the body. Surrealist
-architecture is buildings that *almost* obey, so a panel that is merely
-rectangular reads as software; one cut on a slant reads as a place.
+Four things carry it:
 
-**Everything stutters at 12fps.** The floor scrolls, the monolith turns
-and the static re-seeds on a quantised clock, while the rest of the
-toolkit eases at whatever the profile says. This is the opposite of YMO,
-whose ground does not move at all, and of Aero, which never stops
-easing: here motion exists but it is not allowed to be smooth.
+**Everything is dithered, nothing is smooth.** Gradients are hard bands
+with a 50% checker between them, because an 8-bit display could not do
+better and the look is built out of that limit. `_dither` does it in
+about a thousand rectangles rather than the two hundred thousand a real
+per-pixel dither would need.
 
-**Hover is a 1-bit inversion.** No glow, no fade, no interpolation -
-the control flips to white ink, a magenta ghost of it appears offset,
-and it snaps back. `press_snap` is on for the same reason.
+**Panels are group boxes, not windows.** The title sits in a gap broken
+out of the top rule - the Win95 GroupBox - so a screen of panels reads as
+a control panel rather than as a desktop. One corner is still cut on a
+slant, because the architecture in this world almost obeys.
 
-The spinner is a low-poly monolith: a real octahedron rotated in three
-dimensions, back-face culled, flat-shaded between cyan and magenta by
-face normal, stepped at 12fps and shedding pixelated fragments of the
-frames it has already been.
+**Hover is a dotted focus rectangle.** The marching 1px dots and a navy
+wash, thresholded so there is no in-between state. Press flips the bevel
+and shifts the content a pixel down and right, which is what a real
+Win95 button did and why it felt like it moved.
+
+**The spinner is an hourglass**, flat-shaded in chalk with a black
+outline and stepped at 12fps, shedding the poses it has already been.
 """
 
 import math
@@ -41,63 +45,120 @@ from .. import fonts, layouts, paint, profiles, skins
 from .. import theme as theme_mod
 from ..theme import Theme, rgb
 
-# --- palette ------------------------------------------------------------
-VOID = rgb("#120a2a")        # cosmic void, the night the world hangs in
-MARBLE = rgb("#2a1b40")      # morphic marble, the primary panel
-SLATE = rgb("#1a2636")       # grid realm, the retro terminal frame
-MAGENTA = rgb("#e6005c")     # reality corruption
-CYAN = rgb("#00f0ff")        # low-poly sky
-WHITE = rgb("#ffffff")
-INK = rgb("#000000")         # absolute, not "very dark" - that is the look
+# --- palette: chalk, zinc, and one black ---------------------------------
+BONE = rgb("#d7d2c4")        # the washed void everything hangs in
+GREIGE = rgb("#bab3a2")
+ZINC = rgb("#c0c0c0")        # the 1995 button face, to the digit
+ZINC_HI = rgb("#ffffff")
+ZINC_SH = rgb("#808080")
+SOOT = rgb("#17140f")        # the outline on everything
+NAVY = rgb("#000080")        # the selection colour of that decade
+ROSE = rgb("#c2607a")        # dusty salmon
+MUSTARD = rgb("#d2a03c")
+MINT = rgb("#7fa89a")
+MOSS = rgb("#7d945a")
+BRICK = rgb("#a8402f")
+LILAC = rgb("#bfb6cb")       # the sky, before it dithers down to rose
 
 WORLD = Theme(
     name="ena-world",
-    bg=VOID, panel=SLATE, surface=MARBLE,
-    surface_hover=rgb("#3c2a58"), border=INK,
-    accent=MAGENTA, accent_bright=rgb("#ff3d85"), accent_dim=rgb("#5c0025"),
-    text=WHITE, text_dim=rgb("#a99fc4"), text_mute=rgb("#6c6390"),
-    ok=CYAN, warn=rgb("#ffd400"), danger=MAGENTA, info=CYAN,
-    rounding=0.0, rounding_panel=0.0, border_width=2.0,
+    bg=BONE, panel=GREIGE, surface=ZINC, surface_hover=rgb("#cdcdcd"),
+    border=SOOT,
+    accent=ROSE, accent_bright=rgb("#d4879c"), accent_dim=rgb("#8d4256"),
+    text=rgb("#17140f"), text_dim=rgb("#55503f"), text_mute=rgb("#857e6b"),
+    ok=MOSS, warn=MUSTARD, danger=BRICK, info=MINT,
+    rounding=0.0, rounding_panel=0.0, border_width=1.0,
 )
 
-DROP = 5.0                   # the offset shadow, exactly as specified
-EDGE = 2.0                   # every border, everywhere
+DROP = 3.0                   # flat offset shadow; 5px reads as soot on bone
 STEP = 12.0                  # frames per second the world is allowed
+CUT = 14.0                   # the one corner that is not square
 
 
 def _q(phase, rate=STEP):
-    """Quantise a phase to the world's framerate. Everything that moves
-    goes through this - a smooth easing curve and a 12fps rotation in the
-    same picture reads as a bug, not as a style."""
+    """Quantise to the world's framerate. Everything that moves goes
+    through this - a smooth ease and a 12fps step in the same picture
+    reads as a bug rather than as a style."""
     return math.floor(phase * rate) / rate
 
 
 def _snap(v, grid=3.0):
-    """Nail a coordinate to a low-resolution grid, which is what makes a
-    trail fragment read as a pixel rather than as a small square."""
     return math.floor(v / grid) * grid
 
 
-def _poly(x, y, w, h, big=18.0, small=7.0):
-    """The panel outline: a large chamfer top-right, a small one bottom-
-    left. Asymmetric on purpose - mirrored cuts come back round to
-    looking like a deliberate frame, and this should not look framed."""
-    return [ImVec2(x, y), ImVec2(x + w - big, y), ImVec2(x + w, y + big),
-            ImVec2(x + w, y + h), ImVec2(x + small, y + h),
-            ImVec2(x, y + h - small)]
+def _bevel95(dl, x, y, w, h, out=True, face=None):
+    """The four-tone border, in the order Windows drew it: an outer pair
+    and an inner pair, light down one diagonal and dark down the other.
+
+    Two tones is the common shortcut and it is why most imitations look
+    like a flat rectangle with a highlight. The second pair is what makes
+    the edge read as a moulding with a thickness.
+    """
+    if face is not None:
+        dl.add_rect_filled(ImVec2(x, y), ImVec2(x + w, y + h),
+                           theme_mod.u32(face), 0.0)
+    o_hi, o_lo = (ZINC_HI, SOOT) if out else (ZINC_SH, ZINC_HI)
+    i_hi, i_lo = (ZINC, ZINC_SH) if out else (SOOT, ZINC)
+    for inset, hi, lo in ((0.0, o_hi, o_lo), (1.0, i_hi, i_lo)):
+        a, b = x + inset, y + inset
+        c, d = x + w - inset, y + h - inset
+        dl.add_line(ImVec2(a, b), ImVec2(c, b), theme_mod.u32(hi), 1.0)
+        dl.add_line(ImVec2(a, b), ImVec2(a, d), theme_mod.u32(hi), 1.0)
+        dl.add_line(ImVec2(a, d - 1), ImVec2(c, d - 1), theme_mod.u32(lo), 1.0)
+        dl.add_line(ImVec2(c - 1, b), ImVec2(c - 1, d), theme_mod.u32(lo), 1.0)
 
 
-def _checker(dl, x, y, w, h, col, cell=10.0, phase=0.0):
-    """A chess grid, clipped to a box. Drawn as the dark squares only, so
-    whatever is underneath shows through the light ones."""
-    off = _q(phase) * cell * 2.0 % (cell * 2.0)
-    rows = int(h / cell) + 2
-    cols = int(w / cell) + 2
+# the 4x4 ordered matrix, which is the one every 8-bit display used
+_BAYER = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
+
+
+def _dither(dl, x, y, w, h, top, bottom, steps=12, cell=6.0):
+    """A gradient the way a 256-colour display had to make one: hard
+    bands with an ordered checker between each pair.
+
+    A true per-pixel dither over a window is a quarter of a million
+    rectangles a frame, which Python will not do. Banding it and
+    dithering only the seams costs about a thousand and is
+    indistinguishable at this cell size - the blockiness is the point,
+    not a compromise.
+    """
+    band = h / steps
+    cols = int(w / cell) + 1
+    for i in range(steps):
+        k = i / max(1, steps - 1)
+        by = y + i * band
+        dl.add_rect_filled(ImVec2(x, by), ImVec2(x + w, by + band + 1),
+                           theme_mod.u32(theme_mod.lerp(top, bottom, k)), 0.0)
+        if i == steps - 1:
+            break
+        nxt = theme_mod.lerp(top, bottom, (i + 1) / max(1, steps - 1))
+        # Four rows at rising thresholds, so the seam crosses over in
+        # stages. One row reads as a line and two still read as a line
+        # with a shadow; it takes four before the eye gives up and calls
+        # it a gradient that a 256-colour display could not quite make.
+        # A true per-pixel dither over the sky is ~50k rectangles a frame
+        # and Python will not do that, so the bands are few and only the
+        # seams are dithered - which at this cell size looks the same.
+        for row, lim in ((4, 3), (3, 6), (2, 10), (1, 13)):
+            seam = by + band - cell * row
+            for c in range(cols):
+                if _BAYER[(i + row) % 4][c % 4] > lim:
+                    continue
+                px = x + c * cell
+                dl.add_rect_filled(ImVec2(px, seam),
+                                   ImVec2(min(x + w, px + cell), seam + cell),
+                                   theme_mod.u32(nxt), 0.0)
+
+
+def _checker(dl, x, y, w, h, col, cell=10.0, offset=0.0):
+    """A flat chess plane. No perspective: the vanishing-point version of
+    this is synthwave, which is a different decade and a different mood."""
+    rows, cols = int(h / cell) + 2, int(w / cell) + 1
     for r in range(rows):
         for c in range(cols):
             if (r + c) % 2:
                 continue
-            px, py = x + c * cell, y + r * cell - off
+            px, py = x + c * cell, y + r * cell - offset
             if py + cell < y or py > y + h:
                 continue
             dl.add_rect_filled(ImVec2(px, max(y, py)),
@@ -105,51 +166,51 @@ def _checker(dl, x, y, w, h, col, cell=10.0, phase=0.0):
                                       min(y + h, py + cell)), col, 0.0)
 
 
-def _static(dl, x, y, w, h, now, col_a, col_b, n=140):
-    """Dithered static. Deterministic from an integer seed so the field
-    is stable within a frame step and jumps between them - television
-    noise, not a particle system."""
-    seed = int(_q(now, 6.0) * 6.0) & 0xFFFF
-    for i in range(n):
-        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
-        px = x + (seed >> 7) % max(1, int(w))
-        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
-        py = y + (seed >> 7) % max(1, int(h))
-        dl.add_rect_filled(ImVec2(px, py), ImVec2(px + 2, py + 2),
-                           col_a if (seed & 7) else col_b, 0.0)
+def _dotted(dl, x0, y0, x1, y1, col, dash=2.0):
+    """The focus rectangle. Every Win95 control had one and nothing since
+    has replaced what it did: say *this one* without changing its
+    colour, its size or its position."""
+    for x in range(int(x0), int(x1), int(dash * 2)):
+        dl.add_rect_filled(ImVec2(x, y0), ImVec2(x + dash, y0 + 1), col, 0.0)
+        dl.add_rect_filled(ImVec2(x, y1 - 1), ImVec2(x + dash, y1), col, 0.0)
+    for y in range(int(y0), int(y1), int(dash * 2)):
+        dl.add_rect_filled(ImVec2(x0, y), ImVec2(x0 + 1, y + dash), col, 0.0)
+        dl.add_rect_filled(ImVec2(x1 - 1, y), ImVec2(x1, y + dash), col, 0.0)
+
+
+def _poly(x, y, w, h):
+    """Square but for one corner. Only one, and never mirrored - a pair
+    of matching cuts comes back round to looking like a deliberate frame,
+    and the architecture here should look like it almost obeys."""
+    return [ImVec2(x, y), ImVec2(x + w - CUT, y), ImVec2(x + w, y + CUT),
+            ImVec2(x + w, y + h), ImVec2(x, y + h)]
 
 
 # --- painters -----------------------------------------------------------
 
 def plate(dl, x, y, w, h, t, edge, style, shadow):
-    """A slab of the world: cut polygon, black ink, a shadow with no blur."""
+    """A group box: zinc face, etched rule, one corner off."""
     if style == "flat":
         return False
     body = _poly(x, y, w, h)
     if shadow and style in ("raised", "plated"):
         dl.add_convex_poly_filled([ImVec2(p.x + DROP, p.y + DROP)
-                                   for p in body], theme_mod.u32(INK))
+                                   for p in body], theme_mod.u32(SOOT, 0.45))
     if style != "outlined":
         dl.add_convex_poly_filled(body, theme_mod.u32(t.surface))
-        # the grid realm bleeding through the marble, very low
-        _checker(dl, x + EDGE, y + EDGE, w - EDGE * 2, h - EDGE * 2,
-                 theme_mod.u32(INK, 0.16), 9.0)
-        paint.grad_rect(dl, x + EDGE, y + h * 0.45, w - EDGE * 2,
-                        h * 0.55 - EDGE, theme_mod.with_alpha(VOID, 0.0),
-                        theme_mod.with_alpha(VOID, 0.55), 0.0)
-    # the hard diagonal division - surrealist architecture, one slant
-    dl.add_line(ImVec2(x + w * 0.58, y + h), ImVec2(x + w, y + h * 0.34),
-                theme_mod.u32(CYAN, 0.22), 1.0)
-    dl.add_polyline(body + [body[0]], theme_mod.u32(INK), EDGE, 0)
+        # a wash of the void coming up through the zinc, dithered
+        _checker(dl, x + 2, y + h * 0.52, w - 4, h * 0.48 - 2,
+                 theme_mod.u32(GREIGE, 0.55), 8.0)
+    _bevel95(dl, x, y, w, h, out=True)
+    dl.add_polyline(body + [body[0]], theme_mod.u32(SOOT), 1.0, 0)
     if edge is not None:
-        dl.add_rect_filled(ImVec2(x + EDGE, y + EDGE),
-                           ImVec2(x + EDGE + 5, y + h - EDGE),
+        dl.add_rect_filled(ImVec2(x + 3, y + 3), ImVec2(x + 7, y + h - 3),
                            theme_mod.u32(edge), 0.0)
     return True
 
 
-# Cryptic environmental descriptors, the way a sign in this world is
-# labelled: the word, and something that is not quite its translation.
+# Cryptic environmental descriptors - the word, and something that is not
+# quite its translation, the way a sign in this world is labelled.
 SUB = {
     "status": "境界状態", "state": "境界状態",
     "region": "地域", "map": "地域",
@@ -161,8 +222,8 @@ SUB = {
     "exits": "出口", "doors": "出口",
     "void": "虚無", "sky": "空",
     "memory": "記憶", "noise": "雑音",
+    "readings": "測量", "survey": "測量",
     "jobs": "作業", "tasks": "作業",
-    "survey": "測量", "readings": "測量",
 }
 
 
@@ -177,144 +238,141 @@ def _sub(title):
 
 
 def head(dl, x, y, w, t, icon, title, right, right_col, dot):
-    """A black signboard with a cut corner and a sub-header that is not
-    quite a translation."""
-    bar = 26.0
-    bx, by, bw = x + EDGE, y + EDGE, w - EDGE * 2
-    cut = 14.0
-    dl.add_convex_poly_filled(
-        [ImVec2(bx, by), ImVec2(bx + bw, by), ImVec2(bx + bw, by + bar - cut),
-         ImVec2(bx + bw - cut, by + bar), ImVec2(bx, by + bar)],
-        theme_mod.u32(INK))
-    if dot is not None:
-        dl.add_rect_filled(ImVec2(bx + 7, by + bar * 0.5 - 4),
-                           ImVec2(bx + 15, by + bar * 0.5 + 4),
-                           theme_mod.u32(dot), 0.0)
-    tx = bx + (22.0 if dot is not None else 9.0)
-    with fonts.use("title"):
+    """The Win95 group-box label: the title sits in a gap broken out of
+    the top rule, rather than in a bar of its own.
+
+    A title *bar* makes every panel a little window and a screen of them
+    a desktop - which Y2K already is. A group box makes the same screen a
+    control panel, which is the furniture this world actually has in it.
+    """
+    gap_x = x + 14.0
+    with fonts.use("semi"):
         label = (title or "").upper()
         ts = imgui.calc_text_size(label)
-        dl.add_text(ImVec2(tx + 1, by + (bar - ts.y) * 0.5 + 1),
-                    theme_mod.u32(MAGENTA, 0.8), label)   # 1px misregister
-        dl.add_text(ImVec2(tx, by + (bar - ts.y) * 0.5),
-                    theme_mod.u32(WHITE), label)
     sub = _sub(title)
+    sw = 0.0
+    if sub:
+        with fonts.use("cjk"):
+            sw = imgui.calc_text_size(sub).x + 7.0
+    pad = 7.0
+    run = ts.x + sw + pad * 2
+    ly = y + 12.0
+
+    # the etched rule, broken where the label goes
+    for seg in ((x + 5, gap_x - pad), (gap_x + run - pad, x + w - 5 - CUT)):
+        if seg[1] - seg[0] < 2:
+            continue
+        dl.add_line(ImVec2(seg[0], ly), ImVec2(seg[1], ly),
+                    theme_mod.u32(ZINC_SH), 1.0)
+        dl.add_line(ImVec2(seg[0], ly + 1), ImVec2(seg[1], ly + 1),
+                    theme_mod.u32(ZINC_HI), 1.0)
+    if dot is not None:
+        dl.add_rect_filled(ImVec2(gap_x - 1, ly - 4), ImVec2(gap_x + 7, ly + 4),
+                           theme_mod.u32(dot), 0.0)
+        dl.add_rect(ImVec2(gap_x - 1, ly - 4), ImVec2(gap_x + 7, ly + 4),
+                    theme_mod.u32(SOOT), 0.0, 1.0)
+        gap_x += 13.0
+    with fonts.use("semi"):
+        dl.add_text(ImVec2(gap_x, ly - ts.y * 0.5), theme_mod.u32(t.text),
+                    label)
     if sub:
         with fonts.use("cjk"):
             sz = imgui.calc_text_size(sub)
-            dl.add_text(ImVec2(tx + ts.x + 10, by + (bar - sz.y) * 0.5),
-                        theme_mod.u32(CYAN, 0.85), sub)
+            dl.add_text(ImVec2(gap_x + ts.x + 7, ly - sz.y * 0.5),
+                        theme_mod.u32(ROSE), sub)
     if right:
         with fonts.use("mono"):
             rw = imgui.calc_text_size(right)
-            dl.add_text(ImVec2(bx + bw - 16 - rw.x, by + (bar - rw.y) * 0.5),
+            rx = x + w - 12 - CUT - rw.x
+            dl.add_rect_filled(ImVec2(rx - 5, ly - rw.y * 0.5),
+                               ImVec2(rx + rw.x + 4, ly + rw.y * 0.5),
+                               theme_mod.u32(t.surface), 0.0)
+            dl.add_text(ImVec2(rx, ly - rw.y * 0.5),
                         theme_mod.u32(right_col if right_col is not None
-                                      else CYAN), right)
-    dl.add_rect_filled(ImVec2(bx, by + bar), ImVec2(bx + bw, by + bar + 2),
-                       theme_mod.u32(MAGENTA, 0.9), 0.0)
-    return y + bar + 12.0
+                                      else t.text_dim), right)
+    return y + 26.0
 
 
 def frame(dl, x, y, w, h, t, kind):
-    """Blocks with ink borders and a shadow that has no blur in it."""
+    """Raised keys and sunken fields, both with the full bevel."""
     if kind == "input":
-        dl.add_rect_filled(ImVec2(x, y), ImVec2(x + w, y + h),
-                           theme_mod.u32(SLATE), 0.0)
-        _checker(dl, x, y, w, h, theme_mod.u32(INK, 0.22), 7.0)
-        dl.add_rect(ImVec2(x, y), ImVec2(x + w, y + h), theme_mod.u32(INK),
-                    0.0, EDGE)
-        dl.add_rect_filled(ImVec2(x, y + h - 2), ImVec2(x + w, y + h),
-                           theme_mod.u32(CYAN, 0.45), 0.0)
+        _bevel95(dl, x, y, w, h, out=False, face=rgb("#ffffff"))
         return True
     if not kind.startswith("button"):
         return False
     primary = kind.endswith("primary")
-    cut = min(10.0, h * 0.42)
-    body = [ImVec2(x, y), ImVec2(x + w - cut, y), ImVec2(x + w, y + cut),
-            ImVec2(x + w, y + h), ImVec2(x + cut, y + h),
-            ImVec2(x, y + h - cut)]
-    dl.add_convex_poly_filled([ImVec2(p.x + 4, p.y + 4) for p in body],
-                              theme_mod.u32(INK))
-    dl.add_convex_poly_filled(body, theme_mod.u32(MAGENTA if primary
-                                                  else MARBLE))
-    if not primary:
-        _checker(dl, x + EDGE, y + EDGE, w - EDGE * 2, h - EDGE * 2,
-                 theme_mod.u32(INK, 0.18), 7.0)
-    dl.add_polyline(body + [body[0]], theme_mod.u32(INK), EDGE, 0)
+    _bevel95(dl, x, y, w, h, out=True, face=ROSE if primary else ZINC)
+    dl.add_rect(ImVec2(x, y), ImVec2(x + w, y + h), theme_mod.u32(SOOT),
+                0.0, 1.0)
     return True
 
 
 def hover_aura(dl, x0, y0, x1, y1, t, amount, kind):
-    """A 1-bit inversion and a hard translation, with nothing in between.
+    """A dotted focus rectangle and a navy wash, with nothing in between.
 
-    `amount` arrives eased, so it is thresholded away: this interface
-    does not have intermediate states. What is left is the control's
-    ghost shifted three pixels in magenta, a white keyline over it, and
-    corruption bars torn out of the top edge.
+    `amount` arrives eased and is thresholded away: this furniture has no
+    intermediate states, and a glow would be a lighting effect in a
+    picture that has no lights in it.
     """
     if amount < 0.5:
         return
-    dl.add_rect(ImVec2(x0 + 3, y0 + 3), ImVec2(x1 + 3, y1 + 3),
-                theme_mod.u32(MAGENTA), 0.0, EDGE)
-    dl.add_rect(ImVec2(x0 - 1, y0 - 1), ImVec2(x1 + 1, y1 + 1),
-                theme_mod.u32(WHITE), 0.0, EDGE)
-    # torn bands, snapped to the low-resolution grid
-    h = y1 - y0
-    for i, f in enumerate((0.18, 0.46, 0.74)):
-        yy = _snap(y0 + h * f, 3.0)
-        dl.add_rect_filled(ImVec2(x0 + 4 + i * 9, yy),
-                           ImVec2(x0 + 4 + i * 9 + 16, yy + 3),
-                           theme_mod.u32(CYAN if i % 2 else MAGENTA, 0.9), 0.0)
+    dl.add_rect_filled(ImVec2(x0 + 2, y0 + 2), ImVec2(x1 - 2, y1 - 2),
+                       theme_mod.u32(NAVY, 0.14), 0.0)
+    _dotted(dl, x0 + 3, y0 + 3, x1 - 3, y1 - 3, theme_mod.u32(SOOT, 0.85))
 
 
 def press(dl, x0, y0, x1, y1, t, amount):
-    """translate(3px, 3px): the block lands on its own shadow."""
+    """The bevel flips and the face moves a pixel down and right, which
+    is the whole reason a 1995 button felt like it travelled."""
     if amount < 0.5:
         return
-    dl.add_rect_filled(ImVec2(x0, y0), ImVec2(x1, y1),
-                       theme_mod.u32(INK, 0.45), 0.0)
-    dl.add_rect(ImVec2(x0, y0), ImVec2(x1, y1), theme_mod.u32(CYAN), 0.0, EDGE)
+    _bevel95(dl, x0, y0, x1 - x0, y1 - y0, out=False)
+    dl.add_rect_filled(ImVec2(x0 + 2, y0 + 2), ImVec2(x1 - 2, y1 - 2),
+                       theme_mod.u32(ZINC_SH, 0.22), 0.0)
 
 
 def tabs(dl, x, y, w, h, t, rects, index, hots):
-    """Doors along a street: blocks on ink, the open one in corruption."""
+    """A tab control: the live one stands a little taller and breaks the
+    line into the body, so the page below is visibly the same object."""
     if not rects:
         return False
-    dl.add_rect_filled(ImVec2(x - 10, y - 3), ImVec2(x + w + 10, y + h + 5),
-                       theme_mod.u32(INK), 0.0)
+    base = y + h
     for i, (tx, tw) in enumerate(rects):
         on = i == index
-        cut = 11.0
-        body = [ImVec2(tx, y), ImVec2(tx + tw - cut, y),
-                ImVec2(tx + tw, y + cut), ImVec2(tx + tw, y + h),
-                ImVec2(tx, y + h)]
-        fill = MAGENTA if on else (SLATE if hots[i] < 0.5 else MARBLE)
-        dl.add_convex_poly_filled(body, theme_mod.u32(fill))
-        if not on:
-            _checker(dl, tx + EDGE, y + EDGE, tw - EDGE * 2, h - EDGE * 2,
-                     theme_mod.u32(INK, 0.3), 7.0)
-        dl.add_polyline(body + [body[0]], theme_mod.u32(INK), EDGE, 0)
+        ty = y + (0.0 if on else 3.0)
+        th = h - (0.0 if on else 3.0)
+        face = (rgb("#d2d2d2") if on
+                else theme_mod.lerp(GREIGE, ZINC, 0.1 + 0.35 * hots[i]))
+        _bevel95(dl, tx, ty, tw, th + 2, out=True, face=face)
+        dl.add_rect(ImVec2(tx, ty), ImVec2(tx + tw, ty + th + 2),
+                    theme_mod.u32(SOOT), 0.0, 1.0)
         if on:
-            dl.add_rect_filled(ImVec2(tx, y + h - 3),
-                               ImVec2(tx + tw, y + h), theme_mod.u32(CYAN), 0.0)
+            dl.add_rect_filled(ImVec2(tx + 2, base - 1),
+                               ImVec2(tx + tw - 2, base + 2),
+                               theme_mod.u32(rgb("#d2d2d2")), 0.0)
+            dl.add_rect_filled(ImVec2(tx + 3, y + 3), ImVec2(tx + tw - 3,
+                                                             y + 5),
+                               theme_mod.u32(ROSE), 0.0)
+    dl.add_line(ImVec2(x - 10, base), ImVec2(x + w + 10, base),
+                theme_mod.u32(SOOT), 1.0)
     return True
 
 
-# an octahedron, and the eight faces that wrap it
+# an octahedron squeezed toward an hourglass, and the faces that wrap it
 _V = ((0.0, 1.0, 0.0), (0.0, -1.0, 0.0), (1.0, 0.0, 0.0), (-1.0, 0.0, 0.0),
       (0.0, 0.0, 1.0), (0.0, 0.0, -1.0))
 _F = ((0, 2, 4), (0, 4, 3), (0, 3, 5), (0, 5, 2),
       (1, 4, 2), (1, 3, 4), (1, 5, 3), (1, 2, 5))
+CHALK = (rgb("#efe9da"), ROSE, MUSTARD, rgb("#52786d"), rgb("#7e7769"),
+         MOSS, rgb("#9c4a62"), rgb("#4a463c"))
 
 
 def _project(ax, ay, r):
-    """Rotate the solid and flatten it. Orthographic, because perspective
-    on something this small is a rounding error with extra arithmetic."""
     ca, sa = math.cos(ay), math.sin(ay)
     cb, sb = math.cos(ax), math.sin(ax)
     out = []
     for vx, vy, vz in _V:
-        vx, vy, vz = vx * 0.86, vy * 1.32, vz * 0.86     # toward an hourglass
+        vx, vy, vz = vx * 0.80, vy * 1.34, vz * 0.80
         x1, z1 = vx * ca + vz * sa, -vx * sa + vz * ca
         y1, z2 = vy * cb - z1 * sb, vy * sb + z1 * cb
         out.append((x1 * r, y1 * r, z2))
@@ -322,132 +380,133 @@ def _project(ax, ay, r):
 
 
 def spinner(dl, cx, cy, r, t, phase, spin=1.0):
-    """A low-poly monolith, stepped at 12fps and shedding what it was.
+    """An hourglass, flat-shaded in chalk and stepped at 12fps.
 
-    The stutter is the point and it is not a filter over a smooth
-    animation: the rotation itself is quantised, so a faster spin covers
-    more angle per step and the thing visibly comes apart into poses
-    rather than blurring. Trail fragments are the previous steps'
-    vertices snapped to a 3px grid, which is what makes them read as
-    pixels instead of as small squares.
+    Flat means flat: one solid colour per face off a fixed chalk set, a
+    black outline on every edge, and no light source anywhere - which is
+    what an untextured 1995 polygon actually looked like and is why
+    shading it by a normal would have been wrong.
+
+    The stutter is the rotation itself, not a filter over a smooth one,
+    so a faster spin covers more angle per step and the solid comes apart
+    into poses instead of blurring.
     """
     heat = max(0.0, min(1.0, (spin - 1.0) / 4.0))
-    core = r * 0.95
+    core = r * 0.92
     qp = _q(phase)
 
-    # the shadow the monolith throws on the grid, also stepped
-    dl.add_rect_filled(ImVec2(cx - core * 0.7, cy + core * 0.95),
-                       ImVec2(cx + core * 0.7, cy + core * 1.15),
-                       theme_mod.u32(INK, 0.55), 0.0)
+    _checker(dl, cx - core * 0.85, cy + core * 0.98, core * 1.7, 5.0,
+             theme_mod.u32(SOOT, 0.35), 5.0)
 
-    # what it was, one and two steps ago
-    for back, alpha in ((2.0 / STEP, 0.20), (1.0 / STEP, 0.38)):
-        pts = _project((qp - back) * 1.7, (qp - back) * 2.6, core)
-        col = theme_mod.u32(MAGENTA if heat > 0.5 else CYAN,
-                            alpha * (0.5 + 0.5 * heat))
-        for px, py, _pz in pts:
+    for back, alpha in ((2.0 / STEP, 0.16), (1.0 / STEP, 0.30)):
+        for px, py, _pz in _project((qp - back) * 1.7, (qp - back) * 2.6,
+                                    core):
             dl.add_rect_filled(ImVec2(_snap(cx + px), _snap(cy + py)),
                                ImVec2(_snap(cx + px) + 3, _snap(cy + py) + 3),
-                               col, 0.0)
+                               theme_mod.u32(SOOT, alpha), 0.0)
 
     pts = _project(qp * 1.7, qp * 2.6, core)
     faces = []
-    for a, b, c in _F:
+    for n, (a, b, c) in enumerate(_F):
         ax, ay, _ = pts[a]
         bx, by, _ = pts[b]
         kx, ky, _ = pts[c]
-        # back-face cull from the winding of the projected triangle
         if (bx - ax) * (ky - ay) - (by - ay) * (kx - ax) <= 0:
-            continue
-        depth = (pts[a][2] + pts[b][2] + pts[c][2]) / 3.0
-        faces.append((depth, (ax, ay), (bx, by), (kx, ky)))
+            continue          # back-facing, from the projected winding
+        faces.append(((pts[a][2] + pts[b][2] + pts[c][2]) / 3.0, n,
+                      (ax, ay), (bx, by), (kx, ky)))
     faces.sort(key=lambda f: f[0])
-    for depth, pa, pb, pc in faces:
-        k = max(0.0, min(1.0, (depth + 1.0) * 0.5))
-        shade = theme_mod.lerp(CYAN, MAGENTA, k)
-        shade = theme_mod.lerp(INK, shade, 0.62 + 0.38 * k)
-        dl.add_triangle_filled(ImVec2(cx + pa[0], cy + pa[1]),
-                               ImVec2(cx + pb[0], cy + pb[1]),
-                               ImVec2(cx + pc[0], cy + pc[1]),
-                               theme_mod.u32(shade))
-        dl.add_triangle(ImVec2(cx + pa[0], cy + pa[1]),
-                        ImVec2(cx + pb[0], cy + pb[1]),
-                        ImVec2(cx + pc[0], cy + pc[1]),
-                        theme_mod.u32(INK, 0.8), 1.0)
+    for _d, n, pa, pb, pc in faces:
+        va = ImVec2(cx + pa[0], cy + pa[1])
+        vb = ImVec2(cx + pb[0], cy + pb[1])
+        vc = ImVec2(cx + pc[0], cy + pc[1])
+        dl.add_triangle_filled(va, vb, vc, theme_mod.u32(CHALK[n]))
+        dl.add_triangle(va, vb, vc, theme_mod.u32(SOOT), 1.2)
 
     if heat > 0.02:
-        # at speed the world stops keeping up: fragments tear off sideways
         for i in range(8):
-            a = (qp * 3.1 + i * 0.785)
-            rad = core * (1.25 + 0.35 * math.sin(qp * 2.0 + i))
+            a = qp * 3.1 + i * 0.785
+            rad = core * (1.22 + 0.30 * math.sin(qp * 2.0 + i))
             fx, fy = _snap(cx + math.cos(a) * rad), _snap(cy + math.sin(a) * rad)
             dl.add_rect_filled(ImVec2(fx, fy), ImVec2(fx + 3, fy + 3),
-                               theme_mod.u32(MAGENTA if i % 2 else CYAN,
-                                             0.85 * heat), 0.0)
+                               theme_mod.u32(SOOT, 0.75 * heat), 0.0)
     return True
 
 
-# silhouettes on the horizon: (x share, width share, height share)
-SKYLINE = ((0.06, 0.07, 0.30), (0.19, 0.04, 0.17), (0.32, 0.09, 0.44),
-           (0.50, 0.05, 0.22), (0.63, 0.11, 0.36), (0.80, 0.06, 0.26),
-           (0.91, 0.08, 0.19))
+# flat silhouettes on the horizon: (x share, width share, height share)
+SKYLINE = ((0.07, 0.06, 0.26), (0.18, 0.035, 0.14), (0.31, 0.08, 0.38),
+           (0.49, 0.045, 0.19), (0.62, 0.10, 0.31), (0.79, 0.055, 0.23),
+           (0.92, 0.07, 0.16))
+
+
+def _dingbat(dl, x, y, s, kind, col):
+    """Clip art. Every page in 1996 had some and none of it was explained,
+    which is the exact register this world's signage is in."""
+    if kind == 0:                                   # a star
+        pts = []
+        for i in range(10):
+            rr = s * (0.5 if i % 2 else 1.0)
+            a = -math.pi / 2 + i * math.pi / 5
+            pts.append(ImVec2(x + math.cos(a) * rr, y + math.sin(a) * rr))
+        dl.add_concave_poly_filled(pts, col)
+    elif kind == 1:                                 # a right-pointing arrow
+        dl.add_convex_poly_filled(
+            [ImVec2(x - s, y - s * 0.35), ImVec2(x, y - s * 0.35),
+             ImVec2(x, y - s * 0.8), ImVec2(x + s, y),
+             ImVec2(x, y + s * 0.8), ImVec2(x, y + s * 0.35),
+             ImVec2(x - s, y + s * 0.35)], col)
+    else:                                           # a lozenge
+        dl.add_convex_poly_filled(
+            [ImVec2(x, y - s), ImVec2(x + s, y), ImVec2(x, y + s),
+             ImVec2(x - s, y)], col)
 
 
 def background(dl, x, y, w, h, t, now):
-    """The outworld: a dithered sky, a chess floor running to a horizon,
-    impossible architecture standing on it, and static over everything.
+    """A dithered sky, a flat chequer plane, leaning shapes and clip art.
 
-    The floor scrolls on the same 12fps clock as the monolith, so the
-    whole place moves as one object with a bad framerate rather than as
-    several things animating independently.
+    The floor does not recede to a point. A perspective grid running to a
+    vanishing point is synthwave - a different decade and a much louder
+    mood - and it was the single thing that made the first version of
+    this theme read as cyberpunk rather than as webcore.
     """
-    dl.add_rect_filled(ImVec2(x, y), ImVec2(x + w, y + h),
-                       theme_mod.u32(VOID), 0.0)
-    horizon = y + h * 0.52
-    paint.grad_rect(dl, x, y, w, horizon - y, VOID, rgb("#2e1050"), 0.0)
-    paint.dots(dl, x, y, w, horizon - y, theme_mod.u32(WHITE, 0.07), 17.0)
+    horizon = y + h * 0.56
+    _dither(dl, x, y, w, horizon - y, LILAC, rgb("#e3ad9c"), steps=5,
+            cell=8.0)
+    dl.add_rect_filled(ImVec2(x, horizon), ImVec2(x + w, y + h),
+                       theme_mod.u32(BONE), 0.0)
 
     for fx, fw, fh in SKYLINE:
         bw, bh = w * fw, (horizon - y) * fh
         bx = x + w * fx - bw * 0.5
         top = horizon - bh
-        # each one leans: nothing here stands straight
-        lean = bw * (0.22 if int(fx * 100) % 2 else -0.22)
+        lean = bw * (0.20 if int(fx * 100) % 2 else -0.20)
+        body = [ImVec2(bx + lean, top), ImVec2(bx + bw + lean, top + bh * 0.07),
+                ImVec2(bx + bw, horizon), ImVec2(bx, horizon)]
+        dl.add_convex_poly_filled(body, theme_mod.u32(rgb("#8c8294")))
+        side = bw * 0.34
         dl.add_convex_poly_filled(
-            [ImVec2(bx + lean, top), ImVec2(bx + bw + lean, top + bh * 0.08),
-             ImVec2(bx + bw, horizon), ImVec2(bx, horizon)],
-            theme_mod.u32(rgb("#0b0618")))
+            [ImVec2(bx + bw + lean - side, top + bh * 0.05),
+             ImVec2(bx + bw + lean, top + bh * 0.07),
+             ImVec2(bx + bw, horizon), ImVec2(bx + bw - side, horizon)],
+            theme_mod.u32(rgb("#6d6477")))
+        dl.add_polyline(body + [body[0]], theme_mod.u32(SOOT, 0.85), 1.0, 0)
 
-    # the grid realm, running to a vanishing point. Each row's half-width
-    # is a function of its own depth, which is what makes the columns
-    # converge; spacing the columns evenly and scaling the row instead
-    # gives a staircase, which is what this did first.
-    rows, cols = 15, 16
-    floor = y + h - horizon
-    scroll = _q(now, STEP) % 1.0
-    cx = x + w * 0.5
-    for i in range(rows):
-        f0 = ((i + scroll) / rows) ** 2.4
-        f1 = ((i + 1 + scroll) / rows) ** 2.4
-        y0, y1 = horizon + floor * f0, horizon + floor * f1
-        if y1 <= horizon or y0 >= y + h:
-            continue
-        hw0, hw1 = w * (0.03 + 1.25 * f0), w * (0.03 + 1.25 * f1)
-        band = theme_mod.u32(rgb("#2a1a4c"), 0.30 + 0.55 * f0)
-        for c in range(cols):
-            if (c + i) % 2:
-                continue
-            a0, a1 = c / cols - 0.5, (c + 1) / cols - 0.5
-            dl.add_convex_poly_filled(
-                [ImVec2(cx + a0 * 2 * hw0, y0), ImVec2(cx + a1 * 2 * hw0, y0),
-                 ImVec2(cx + a1 * 2 * hw1, y1), ImVec2(cx + a0 * 2 * hw1, y1)],
-                band)
-    dl.add_rect_filled(ImVec2(x, horizon - 1), ImVec2(x + w, horizon + 1),
-                       theme_mod.u32(CYAN, 0.55), 0.0)
+    # the floor: flat tiles, scrolling on the world's own stuttering clock
+    _checker(dl, x, horizon, w, y + h - horizon,
+             theme_mod.u32(rgb("#6f6a5e"), 0.78), 26.0,
+             offset=(_q(now, STEP) * 6.0) % 52.0)
+    dl.add_line(ImVec2(x, horizon), ImVec2(x + w, horizon),
+                theme_mod.u32(SOOT, 0.7), 1.0)
 
-    _static(dl, x, y, w, h, now, theme_mod.u32(WHITE, 0.10),
-            theme_mod.u32(MAGENTA, 0.16))
-    paint.scanlines(dl, x, y, w, h, theme_mod.with_alpha(INK, 0.16), 3.0)
+    # Web 1.0 marginalia, parked where content does not reach
+    for i, (fx, fy, k, col) in enumerate((
+            (0.021, 0.20, 0, MUSTARD), (0.016, 0.74, 2, ROSE),
+            (0.982, 0.31, 1, MINT), (0.977, 0.83, 0, MOSS))):
+        _dingbat(dl, x + w * fx, y + h * fy, 8.0, k, theme_mod.u32(col, 0.9))
+    # the hazard bar every unfinished page had along the bottom
+    paint.hatch(dl, x, y + h - 9, w, 9, theme_mod.u32(MUSTARD, 0.75), 9.0, 4.0)
+    dl.add_line(ImVec2(x, y + h - 10), ImVec2(x + w, y + h - 10),
+                theme_mod.u32(SOOT, 0.6), 1.0)
     return True
 
 
@@ -456,20 +515,21 @@ SKIN = skins.Skin(
     plate=plate, head=head, frame=frame, hover_aura=hover_aura, press=press,
     tabs=tabs, spinner=spinner, background=background,
     corner=lambda t: 0.0,
-    press_depth=3.0,
-    press_snap=True,          # no interpolation anywhere in this world
-    extras={"void": VOID, "marble": MARBLE, "slate": SLATE, "ink": INK,
-            "magenta": MAGENTA, "cyan": CYAN, "white": WHITE,
-            "checker": _checker, "quantise": _q, "snap": _snap, "sub": _sub},
+    press_depth=1.0,
+    press_snap=True,          # 1995 buttons did not ease either
+    extras={"bone": BONE, "zinc": ZINC, "soot": SOOT, "navy": NAVY,
+            "rose": ROSE, "mint": MINT, "mustard": MUSTARD, "moss": MOSS,
+            "bevel": _bevel95, "dither": _dither, "checker": _checker,
+            "dotted": _dotted, "quantise": _q, "sub": _sub},
 )
 
 ENA = profiles.Profile(
     name="ena-world", theme=WORLD, layout=layouts.TABBED,
-    face_ui="Verdana", face_display="Impact", face_mono="Courier New",
-    base_size=16.0, density=0.96,
+    face_ui="Tahoma", face_display="Impact", face_mono="Courier New",
+    base_size=15.5, density=0.92,
     card_style="raised", card_shadow=True,
     motion=3.2,               # what little eases, eases fast
-    sound_set="crisp", volume=0.15,
+    sound_set="crisp", volume=0.14,
     skin=SKIN,
-    blurb="A PS1 outworld - chess-grid floors, 12fps stutter, 1-bit hover",
+    blurb="Webcore - a dithered chalk dreamscape with Win95 zinc in it",
 )

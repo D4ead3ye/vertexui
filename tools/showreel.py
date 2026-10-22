@@ -232,10 +232,10 @@ def timeline(apps):
 
     # --- ena: outworld --------------------------------------------------
     hold(show(4), 10)
-    visit(819, 197, lambda: widgets.spin_boost("mono"), 34)     # the monolith
-    visit(327, 257, nothing, 14)            # the STREET segment
-    visit(105, 315, nothing, 16)            # HOLD
-    visit(260, 315, nothing, 16)            # DESCEND
+    visit(823, 170, lambda: widgets.spin_boost("mono"), 34)     # the hourglass
+    visit(307, 254, nothing, 14)            # the STREET segment
+    visit(104, 312, nothing, 16)            # HOLD
+    visit(257, 312, nothing, 16)            # DESCEND
 
     # --- and the same application through every theme, live -----------
     hold(show(0), 12)

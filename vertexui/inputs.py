@@ -18,11 +18,12 @@ cosmetic one.
 
 from imgui_bundle import ImVec2, imgui
 
-from . import anim, fonts, icons, skins
+from . import anim, fonts, icons, skins, sound, widgets
 from . import theme as theme_mod
 
 __all__ = ["field_label", "text_input", "search_input", "switch",
-           "segmented", "swatches", "chip", "delta", "stepper"]
+           "segmented", "swatches", "check", "radio", "chip", "delta",
+           "stepper"]
 
 
 def _focus_ring(t, active):
@@ -390,4 +391,106 @@ def stepper(key, value, lo=None, hi=None, step=1, width=118.0, fmt="{:g}"):
         out = max(lo, out)
     if hi is not None:
         out = min(hi, out)
+    return out
+
+
+def check(label, value, key=None) -> bool:
+    """A square checkbox. Returns the new value.
+
+    ImGui has one, and it is a rounded box with a vector tick that no
+    skin can reach - so a theme whose whole grammar is the inset bevel
+    could style every other control on a form and not this one. Here the
+    box goes through the `frame` painter like a text field does, and a
+    skin that draws wells gets a checkbox that is a well.
+    """
+    t = theme_mod.current()
+    dl = imgui.get_window_draw_list()
+    key = key or label
+    box = theme_mod.px(16.0, t)
+    o = imgui.get_cursor_screen_pos()
+    with fonts.use("ui"):
+        tw = imgui.calc_text_size(label).x
+    imgui.invisible_button(f"##ck{key}", ImVec2(box + 8 + tw, box))
+    hovered = imgui.is_item_hovered()
+    widgets.hover_tick(f"ck:{key}", hovered)
+    out = not value if imgui.is_item_clicked() else value
+    if imgui.is_item_clicked():
+        sound.play("click")
+    hot = anim.to(f"ck:{key}", 1.0 if hovered else 0.0, 18.0)
+
+    fr = skins.painter("frame")
+    if fr is None or not fr(dl, o.x, o.y, box, box, t, "input"):
+        dl.add_rect_filled(ImVec2(o.x, o.y), ImVec2(o.x + box, o.y + box),
+                           theme_mod.u32(theme_mod.sink(t.surface, 0.4, t)),
+                           skins.corner(t.rounding * 0.5, t))
+        dl.add_rect(ImVec2(o.x, o.y), ImVec2(o.x + box, o.y + box),
+                    theme_mod.u32(t.border, 0.9),
+                    skins.corner(t.rounding * 0.5, t), 1.0)
+    if out:
+        icons.draw("check", dl, o.x + box * 0.5, o.y + box * 0.5,
+                   box * 0.32, theme_mod.u32(t.accent))
+    aura = skins.painter("hover_aura")
+    if aura is not None and hot > 0.01:
+        aura(dl, o.x, o.y, o.x + box, o.y + box, t, hot, "check")
+    with fonts.use("ui"):
+        ts = imgui.calc_text_size(label)
+        dl.add_text(ImVec2(o.x + box + 8, o.y + (box - ts.y) * 0.5),
+                    theme_mod.u32(t.text if out else t.text_dim), label)
+    imgui.set_cursor_screen_pos(ImVec2(o.x, o.y + box + theme_mod.px(7, t)))
+    return out
+
+
+def radio(key, options, index, vertical=True, gap=7.0) -> int:
+    """A group of radios - chunky, square-shouldered and skinnable.
+
+    A group rather than one control, because a lone radio button is never
+    what anyone wants and making the caller track mutual exclusion is how
+    forms end up with two of them lit.
+    """
+    t = theme_mod.current()
+    dl = imgui.get_window_draw_list()
+    box = theme_mod.px(15.0, t)
+    out = index
+    o = imgui.get_cursor_screen_pos()
+    step = box + theme_mod.px(gap, t)
+    for i, label in enumerate(options):
+        with fonts.use("ui"):
+            tw = imgui.calc_text_size(label).x
+        if vertical:
+            px, py = o.x, o.y + i * step
+        else:
+            px, py = o.x + i * (box + 10 + tw + theme_mod.px(gap, t) * 2), o.y
+        imgui.set_cursor_screen_pos(ImVec2(px, py))
+        imgui.invisible_button(f"##rd{key}{i}", ImVec2(box + 8 + tw, box))
+        hovered = imgui.is_item_hovered()
+        widgets.hover_tick(f"rd:{key}:{i}", hovered)
+        if imgui.is_item_clicked() and i != index:
+            out = i
+            sound.play("click")
+        hot = anim.to(f"rd:{key}:{i}", 1.0 if hovered else 0.0, 18.0)
+        fr = skins.painter("frame")
+        if fr is None or not fr(dl, px, py, box, box, t, "input"):
+            dl.add_circle_filled(ImVec2(px + box * 0.5, py + box * 0.5),
+                                 box * 0.5,
+                                 theme_mod.u32(theme_mod.sink(t.surface, 0.4, t)))
+            dl.add_circle(ImVec2(px + box * 0.5, py + box * 0.5), box * 0.5,
+                          theme_mod.u32(t.border, 0.9), 20, 1.0)
+        if i == index:
+            m = box * 0.28
+            dl.add_rect_filled(ImVec2(px + m, py + m),
+                               ImVec2(px + box - m, py + box - m),
+                               theme_mod.u32(t.accent),
+                               skins.corner(box * 0.5, t))
+        aura = skins.painter("hover_aura")
+        if aura is not None and hot > 0.01:
+            aura(dl, px, py, px + box, py + box, t, hot, "radio")
+        with fonts.use("ui"):
+            ts = imgui.calc_text_size(label)
+            dl.add_text(ImVec2(px + box + 8, py + (box - ts.y) * 0.5),
+                        theme_mod.u32(t.text if i == index else t.text_dim),
+                        label)
+    if vertical:
+        imgui.set_cursor_screen_pos(ImVec2(o.x, o.y + len(options) * step))
+    else:
+        imgui.set_cursor_screen_pos(ImVec2(o.x, o.y + box + theme_mod.px(7, t)))
     return out

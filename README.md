@@ -69,7 +69,7 @@ claim can be checked rather than believed.
 | `Y2K` | tabbed | Win98 chrome, neon on pitch black, a CD-ROM spinner |
 | `AERO` | tabbed | glass over sky and grass, a water bubble, about 2007 |
 | `YMO` | tabbed | a 1979 sleeve as a synth panel — drawn letters, real kanji |
-| `ENA` | tabbed | webcore — a dithered chalk dreamscape with Win95 zinc in it |
+| `ENA` | tabbed | a 2000s multimedia CD-ROM — beige plastic, bevels, blood red |
 | `INSTRUMENT` | dense | telemetry and profiling — amber on slate, square corners, 0.82 density |
 | `CONSOLE` | dense | logs and command output — phosphor, mono throughout, zero radius |
 | `MINIMAL` | stage | one job, one number — no navigation, 14px corners, slow and quiet |
@@ -521,60 +521,60 @@ the identical code as a flat dark panel.
 
 ![ENA World](docs/ena.png)
 
-The environment, not the character, and the *animations* rather than the
-game. That means pale and chalky, not neon: a bone-coloured void,
-dithered skies, flat untextured low-poly shapes with black outlines, and
-grey system furniture from 1995 standing in the middle of it as though
-nobody thought it odd.
+Beige computer plastic, charcoal title strips, blood red, olive drab and
+rust. No sky, no landscape, no gradient: the ground is a sheet of plastic
+with a CAD grid printed on it, granite noise through it and scanlines
+over it, and the only places anything is dark are the wells cut into it.
 
-This is the toolkit's third light theme and the only grey one. It is
-also the only place the Win95 four-tone bevel is drawn properly — white,
-face, shadow, black — which is what *zinc* means and is a different
-object from Y2K's chrome: that is a dark, loud, gradient-lit 1999, this
-is a flat, quiet, dusty 1995 left out in the sun.
+The register is Encarta and Macromedia Flash rather than the web — formal
+cold serif headers over monospace body text, pitch-black 3px drop shadows
+with no blur in them, black-and-white checker trim, and low-poly
+wireframe brackets. Nothing in this theme transitions, because a CD-ROM
+in 2001 had no frames to spare for one.
 
 ![The same code on two profiles](docs/ena_contrast.png)
 
-**Everything is dithered, nothing is smooth.** Gradients are hard bands
-with an ordered checker crossing each seam in four stages, because a
-256-colour display could not do better and the look is built out of that
-limit. One dithered row reads as a line and two read as a line with a
-shadow; it takes four before the eye gives up and calls it a gradient. A
-true per-pixel dither over the sky is some fifty thousand rectangles a
-frame, which Python will not do, so the bands are few and only the seams
-are dithered — at this cell size it looks the same.
+**Plastic, not a window ground.** `bg` is the beige of a 1998 case, so
+the application *is* the chassis and the dark areas are wells cut into
+it. Every other dark theme here puts panels on a void; this puts holes in
+a surface, which is why its cards read as moulded rather than as
+floating.
 
-**Panels are group boxes, not windows.** The title sits in a gap broken
-out of the top rule — the Win95 GroupBox — so a screen of panels reads as
-a control panel rather than as a desktop, which Y2K's title bars already
-make. One corner is still cut on a slant, and never mirrored, because a
-matching pair comes back round to looking like a deliberate frame and the
-architecture in this world should look like it *almost* obeys.
+**The bevel is the whole visual language.** Outset for anything you can
+press, inset for anything that holds a value, and the press flips it.
+Drawn with the full four tones — white, face, shadow, black — because two
+is the usual shortcut and it is why most imitations read as a flat
+rectangle with a highlight. That distinction, not a gradient, is what
+separates this from Y2K Cyber: a dark, loud, chrome-lit 1999 against a
+flat, muted, industrial 2001.
 
-**Hover is a dotted focus rectangle.** Marching 1px dots and a navy
-wash, thresholded so there is no in-between state — a glow would be a
-lighting effect in a picture that has no lights in it. Press flips the
-bevel and shifts the face a pixel down and right, which is the whole
-reason a 1995 button felt like it travelled.
+**Hover is a pixelated inversion.** A 2px checker of charcoal laid over
+the control, thresholded so there is no in-between state. No glow, no
+blur, nothing that fades — an inversion is what a 1-bit interface did and
+it costs one frame.
 
-**The spinner is an hourglass**, flat-shaded in chalk with a black
-outline on every edge and no light source anywhere — which is what an
-untextured 1995 polygon actually looked like, and is why shading it by a
-normal would have been wrong. It steps at 12fps and sheds the poses it
-has already been as fragments snapped to a 3px grid.
+**The spinner is a flat-shaded solid in a framed viewport**, every edge
+inked, stepping at 12fps and shedding the poses it has already been. The
+theme exports it as `themes.ena.viewport`, because the rotating model in
+the corner of a reference CD-ROM is content rather than chrome.
 
-![Signal](docs/ena_signal.png)
+![Readings](docs/ena_signal.png)
 
-The floor does not recede to a vanishing point. A perspective grid
-running to one is synthwave — a different decade and a much louder mood
-— and it was the single thing that made the first version of this theme
-read as cyberpunk rather than as webcore.
+The example is a survey station, and the joke the whole program is built
+on is that the subject declines to be surveyed: every reading has a
+confidence that decays, the region you are looking at drifts *because*
+you are looking at it, and the log is mostly the instrument complaining.
+Panels are deliberately unequal — a wide index against a narrow viewport,
+a tall log against a short exit list — because a grid of equal cards is a
+2015 dashboard. Region names are canon where there is canon.
 
-The example is a survey station, because what this environment is about
-is being measured by someone who cannot quite trust the measurement:
-every reading has a confidence that decays, the region you are looking
-at drifts *because* you are looking at it, and the log is mostly the
-instrument complaining. Region names are canon where there is canon.
+**What this theme added to the toolkit**: `widgets.menubar`, a classic
+application menu strip, and `inputs.check` and `inputs.radio`. ImGui has
+a checkbox and a radio of its own, but they are a rounded box and a
+circle with vector marks that no skin can reach — so a theme whose entire
+grammar is the inset bevel could style every control on a form except
+those two. Both now go through the `frame` painter like a text field
+does.
 
 ## Switching themes at runtime
 
@@ -662,7 +662,7 @@ is already going adds to the target instead of restarting it.
 | Y2K Cyber | two narrow rainbow arcs on dark silver | the lobes smear into one continuous ring, the rim blurs and the laser blinks faster |
 | Frutiger Aero | a round bubble | a droplet deforming on two axes, shedding twice the air |
 | YMO Technodelic | leads curling off a hub | the curl pulls straight, the tips smear into a ring, the block meter scans faster |
-| ENA World | a chalk hourglass stepping at 12fps | more angle per step, so it comes apart into poses, shedding pixel fragments sideways |
+| ENA World | a flat-shaded solid in a viewport, stepping at 12fps | more angle per step, so it comes apart into poses, shedding pixel fragments sideways |
 
 Two things this needed under the hood.
 
@@ -1217,7 +1217,7 @@ that a thing runs and two opposed ones show that it is actually modular:
 | `examples/cyberdeck.py` | a Y2K system monitor built out of floating windows |
 | `examples/habitat.py` | a Frutiger Aero habitat monitor — glass over water |
 | `examples/technodelic.py` | a YMO step sequencer — key matrix, lamps, block meters |
-| `examples/outworld.py` | an ENA survey station — regions that drift while measured |
+| `examples/outworld.py` | an ENA reference CD-ROM — menu bar, viewport, status strip |
 
 ![Ledger and intake](docs/ledger.png)
 

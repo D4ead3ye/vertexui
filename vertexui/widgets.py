@@ -734,3 +734,78 @@ def spinner(size=26.0, key="spin", label=None, colour=None, speed=1.0,
         imgui.same_line(0, 9)
         imgui.text_colored(t.text_dim, label)
     return clicked
+
+
+def menubar(key, menus, height=24.0):
+    """A classic application menu strip. Returns `(menu, item)` on the
+    frame something is chosen, else `(None, None)`.
+
+        hit = widgets.menubar("m", {"File": ["Open", "-", "Exit"],
+                                    "View": ["Index", "Log"]})
+
+    `menus` is an ordered mapping of title to items; an item of `"-"` is
+    a separator. Nothing here is a window menu - it is drawn where the
+    cursor is, so a layout can put it in `chrome`, inside a card, or
+    nowhere.
+
+    The toolkit went without one for a long time on the grounds that a
+    menu bar is a 1995 idea. That was a judgement about taste rather than
+    about structure: a program with thirty commands has to put them
+    somewhere, and the alternative every application reached for was its
+    own row of buttons that did not collapse, did not take keyboard
+    focus, and looked different in each one.
+    """
+    t = theme_mod.current()
+    dl = imgui.get_window_draw_list()
+    o = imgui.get_cursor_screen_pos()
+    h = theme_mod.px(height, t)
+    pad = theme_mod.px(11.0, t)
+    full = (imgui.get_window_pos().x + imgui.get_window_size().x
+            - imgui.get_style().window_padding.x * 0.5)
+    dl.add_rect_filled(ImVec2(o.x, o.y), ImVec2(max(o.x + 1, full), o.y + h),
+                       theme_mod.u32(theme_mod.lift(t.surface, 0.25, t)),
+                       skins.corner(0.0, t))
+    dl.add_rect_filled(ImVec2(o.x, o.y + h - 1),
+                       ImVec2(max(o.x + 1, full), o.y + h),
+                       theme_mod.u32(t.border, 0.8))
+
+    chosen = (None, None)
+    x = o.x + theme_mod.px(4.0, t)
+    for mi, (title, items) in enumerate(menus.items()):
+        with fonts.use("ui"):
+            tw = imgui.calc_text_size(title).x
+        w = tw + pad * 2
+        imgui.set_cursor_screen_pos(ImVec2(x, o.y))
+        imgui.invisible_button(f"##mb{key}{mi}", ImVec2(w, h))
+        hovered = imgui.is_item_hovered()
+        hover_tick(f"mb:{key}:{mi}", hovered)
+        if imgui.is_item_clicked():
+            imgui.open_popup(f"##mp{key}{mi}")
+            sound.play("click")
+        hot = anim.to(f"mb:{key}:{mi}", 1.0 if hovered else 0.0, 20.0)
+        if hot > 0.01:
+            aura = skins.painter("hover_aura")
+            if aura is not None:
+                aura(dl, x, o.y + 1, x + w, o.y + h - 1, t, hot, "menu")
+            else:
+                dl.add_rect_filled(ImVec2(x, o.y + 1),
+                                   ImVec2(x + w, o.y + h - 1),
+                                   theme_mod.u32(t.accent, 0.22 * hot),
+                                   skins.corner(t.rounding, t))
+        with fonts.use("ui"):
+            ts = imgui.calc_text_size(title)
+            dl.add_text(ImVec2(x + pad, o.y + (h - ts.y) * 0.5),
+                        theme_mod.u32(t.text), title)
+        imgui.set_next_window_pos(ImVec2(x, o.y + h))
+        if imgui.begin_popup(f"##mp{key}{mi}"):
+            for item in items:
+                if item == "-":
+                    imgui.separator()
+                    continue
+                if imgui.selectable(item, False)[0]:
+                    chosen = (title, item)
+                    sound.play("click")
+            imgui.end_popup()
+        x += w
+    imgui.set_cursor_screen_pos(ImVec2(o.x, o.y + h + theme_mod.px(6.0, t)))
+    return chosen

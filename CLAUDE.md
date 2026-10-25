@@ -166,6 +166,14 @@ is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
   stops reading as a line and starts reading as a gradient. Per-pixel is
   not an option from Python: band the gradient and dither only the
   seams.
+* A speckle texture needs points in the low thousands over a window
+  before the eye stops seeing dots and starts seeing a surface. A few
+  hundred is invisible and costs the same per point.
+* ImGui's own checkbox and radio cannot be skinned - a rounded box and a
+  circle with vector marks, both drawn past the draw list a painter
+  sees. `inputs.check` and `inputs.radio` route them through the `frame`
+  painter instead, which is why a bevelled theme can have a bevelled
+  checkbox.
 * `table.row_begin` tints a row out to the window edge, because there is
   no content-region accessor here. A table therefore belongs in a
   full-width card; in a half-width one it paints over its neighbour.

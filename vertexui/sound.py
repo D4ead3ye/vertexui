@@ -12,6 +12,9 @@ baked into the synthesis rather than left as taste:
     reads as an alert.
   * raised-cosine fades at both ends. A waveform starting or stopping at
     non-zero amplitude clicks, and that click is most of "harsh".
+  * a cue reports the moment it was asked for or it reports nothing. Playback
+    is one at a time, so anything that waits sounds after the hand has moved
+    on. Hover never waits, and a cue that sat too long is dropped.
 
     from vertexui import sound
     sfx = sound.SoundSet(volume=0.16)
@@ -54,6 +57,10 @@ CRISP_SPECS = {
     "toast_out": ([(880.0, 620.0, 70)], 0.26),
 }
 
+CUE_GAP_S = 0.05        # below this, two cues are one gesture
+HOVER_GAP_S = 0.18      # sweeping a toolbar is one gesture, not one per button
+STALE_S = 0.08          # later than this, a cue describes something already over
+
 # Every cue a set is expected to carry. A set missing one is not broken -
 # play() ignores names it does not have - but a set meaning to replace the
 # defaults wants all seven.
@@ -77,6 +84,8 @@ class SoundSet:
         self._cache = {}
         self._q = None
         self._last = 0.0
+        self._last_hover = 0.0
+        self._sounding = False
         self._fails = 0
 
     # -- rendering ------------------------------------------------------
@@ -134,9 +143,13 @@ class SoundSet:
     def _worker(self):
         import winsound
         while True:
-            name = self._q.get()
-            if name is None:
+            item = self._q.get()
+            if item is None:
                 return
+            name, asked = item
+            if time.time() - asked > STALE_S:
+                continue
+            self._sounding = True
             try:
                 # winsound refuses SND_MEMORY together with SND_ASYNC
                 # ("Cannot play asynchronously from memory"), so playback is
@@ -145,7 +158,9 @@ class SoundSet:
                 # would stutter every frame that made a sound.
                 winsound.PlaySound(self.wav(name),
                                    winsound.SND_MEMORY | winsound.SND_NODEFAULT)
+                self._sounding = False
             except Exception as e:
+                self._sounding = False
                 self._fails += 1
                 if self._fails == 1:
                     print(f"Interface sounds unavailable: {e!r}")
@@ -159,20 +174,34 @@ class SoundSet:
         if not self.enabled or name not in self.specs:
             return
         now = time.time()
-        # Hover fires far more often than a click and needs more spacing,
-        # or sweeping a toolbar becomes a burst rather than a series.
-        gap = 0.07 if name == "hover" else 0.05
-        if now - self._last < gap:
+        # Hover fires far more often than anything else, so it is the one
+        # cue that gives way: it never waits behind another sound.
+        # It also leaves no mark on the others: a click right after the
+        # cursor arrives is the whole point of arriving.
+        if now - self._last < CUE_GAP_S:
             return
-        self._last = now
+        if name == "hover":
+            if self._sounding or now - self._last_hover < HOVER_GAP_S:
+                return
+            self._last_hover = now
+        else:
+            self._last = now
         if self._q is None:
-            self._q = queue.Queue(maxsize=2)
+            self._q = queue.Queue(maxsize=1)
             threading.Thread(target=self._worker, name="vertexui-sfx",
                              daemon=True).start()
         try:
-            self._q.put_nowait(name)
+            self._q.put_nowait((name, now))
         except queue.Full:
-            pass          # one already in flight; dropping beats lagging
+            # The newest thing that happened is the one worth hearing.
+            try:
+                self._q.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self._q.put_nowait((name, now))
+            except queue.Full:
+                pass
 
 
 _active = None
@@ -228,9 +257,9 @@ def play(name: str = "click"):
 
 BREEZE_SPECS = {
     # barely there; hover fires constantly, so it has to be something you
-    # notice only by its absence
-    "hover": ([(2900.0, 2400.0, 90)], 0.22),
-    "click": ([(2000.0, 1150.0, 150)], 0.55),
+    # notice only by its absence. A tail here outlives the cursor.
+    "hover": ([(2900.0, 2400.0, 45)], 0.22),
+    "click": ([(2000.0, 1150.0, 80)], 0.55),
     "ok":    ([(1150.0, 2050.0, 380), (2050.0, 1500.0, 220)], 0.50),
     "warn":  ([(1600.0, 850.0, 300), (850.0, 700.0, 260)], 0.52),
     "error": ([(900.0, 430.0, 340), (430.0, 330.0, 340)], 0.58),

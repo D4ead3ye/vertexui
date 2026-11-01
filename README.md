@@ -1066,6 +1066,12 @@ take the interface silent.
 Seven cues: `hover`, `click`, `ok`, `warn`, `error`, `toast_in`,
 `toast_out`.
 
+Cues play one at a time, so a sound that waits would land after the hand has
+moved on. Hover gives way to anything already playing and fires at most once
+every 180ms, the newest other cue replaces one still waiting, and a cue more
+than 80ms late is dropped. Moving fast through an interface goes quiet rather
+than leaving a queue of sounds behind it.
+
 ## Toasts
 
 ![Toasts](docs/toasts.png)

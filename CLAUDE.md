@@ -188,6 +188,7 @@ is rule 5 applied to the toolkit's own code, and it is how `grad_rect`,
 
 ```bash
 python tools/smoke.py          # every screen, every state, every layout
+python tools/soundcheck.py     # cue timing against a fake winsound, silently
 python tools/showreel.py       # re-record the five-theme clip
                                # (it takes over the mouse; --no-pointer opts out,
                                #  at the cost of hover states not lighting up)
